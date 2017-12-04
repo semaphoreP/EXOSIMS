@@ -1203,6 +1203,68 @@ class SurveySimulation(object):
         ##########################################################
         return cachefname
 
+    def calcfZmin(self, sInds, fZ_startSaved):
+        tmpfZ = np.asarray(fZ_startSaved)
+        fZ_matrix = tmpfZ[sInds,:]#Apply previous filters to fZ_startSaved[sInds, 1000]
+        #Find minimum fZ of each star
+        fZmin = np.zeros(sInds.shape[0])
+        fZminInds = np.zeros(sInds.shape[0])
+        for i in xrange(len(sInds)):
+            fZmin[i] = min(fZ_matrix[i,:])
+            fZminInds[i] = np.argmin(fZ_matrix[i,:])
+
+        return fZmin, fZminInds
+
+    def calcfZmax(self,Obs,TL,TK,sInds,mode,fZ_startSaved):
+
+        #Generate cache Name########################################################################
+        cachefname = self.cachefname + 'fZmax'
+
+        #Check if file exists#######################################################################
+        if os.path.isfile(cachefname):#check if file exists
+            self.vprint("Loading cached fZmax from %s"%cachefname)
+            with open(cachefname, 'rb') as f:#load from cache
+                tmpDat = pickle.load(f)
+                fZmax = tmpDat[0,:]
+                fZmaxInds = tmpDat[1,:]
+            return fZmax, fZmaxInds
+
+        #IF the Completeness vs dMag for Each Star File Does Not Exist, Calculate It
+        else:
+            self.vprint("Calculating fZmax")
+            tmpfZ = np.asarray(fZ_startSaved)
+            fZ_matrix = tmpfZ[sInds,:]#Apply previous filters to fZ_startSaved[sInds, 1000]
+            
+            #Generate Time array heritage from generate_fZ
+            startTime = np.zeros(sInds.shape[0])*u.d + self.TimeKeeping.currentTimeAbs#Array of current times
+            dt = 365.25/len(np.arange(1000))
+            time = [j*dt for j in range(1000)]
+                
+            #When are stars in KO regions
+            kogoodStart = np.zeros([len(time),self.schedule.shape[0]])
+            for i in np.arange(len(time)):
+                kogoodStart[i,:] = Obs.keepout(TL, self.schedule, TK.currentTimeAbs+time[i]*u.d, mode)
+                kogoodStart[i,:] = (np.zeros(kogoodStart[i,:].shape[0])+1)*kogoodStart[i,:]
+            kogoodStart[kogoodStart==0] = nan
+
+            #Filter Out fZ where star is in KO region
+
+            #Find maximum fZ of each star
+            fZmax = np.zeros(sInds.shape[0])
+            fZmaxInds = np.zeros(sInds.shape[0])
+            for i in xrange(len(sInds)):
+                fZmax[i] = min(fZ_matrix[i,:])
+                fZmaxInds[i] = np.argmax(fZ_matrix[i,:])
+
+            tmpDat = np.zeros([2,fZmax.shape[0]])
+            tmpDat[0,:] = fZmax
+            tmpDat[1,:] = fZmaxInds
+            with open(cachefname, "wb") as fo:
+                wr = csv.writer(fo, quoting=csv.QUOTE_ALL)
+                pickle.dump(tmpDat,fo)
+                self.vprint("Saved cached fZmax to %s"%cachefname)
+            return fZmax, fZmaxInds
+
 def array_encoder(obj):
     r"""Encodes numpy arrays, astropy Times, and astropy Quantities, into JSON.
     
