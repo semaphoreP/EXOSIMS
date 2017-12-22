@@ -547,7 +547,7 @@ class starkAYO_staticSchedule(SurveySimulation):
         plt.plot([0,0],[0,0],color='r',label=r'$\frac{dC}{d\tau}\ (d^{-1})$')
         plt.scatter([1e-8,1e-8],[1e-8,1e-8],color='b',marker='o',label=r'$max(\frac{dC}{d\tau})$')
         plt.scatter([1e-8,1e-8],[1e-8,1e-8],color='k',marker='o',label=r'$\frac{dC}{d\tau}(t0)$')
-        plt.scatter([1e-8,1e-8],[1e-8,1e-8],color='g',marker='o',label=r'$\frac{dC}{d\tau}(observed)$')
+        plt.scatter([1e-8,1e-8],[1e-8,1e-8],color='c',marker='o',label=r'$\frac{dC}{d\tau}(observed)$')
         xmin = min(self.maxdcbydttimes)
         xmax = 30#max(t0)#We wont observe for longer than a month
         ymin = min(self.maxdcbydt)#min(dcompdt)
