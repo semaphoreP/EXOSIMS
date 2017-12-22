@@ -418,27 +418,54 @@ class starkAYO_staticSchedule(SurveySimulation):
             dcbydtATt[i] = self.Completeness.dcomp_dt(self.t_dets[i]*u.d, self.TargetList, self.schedule[i], self.fZ[i], fEZ, WA, self.mode, self.Cb[i], self.Csp[i]).to(1/u.d).value
         maxdcbydtATt = max(dcbydtATt)
         mindcbydtATt = min(dcbydtATt)
-        cmap = plt.cm.get_cmap('autumn_r')
+        mV = TL.starMag(self.schedule_startSaved,self.mode['lam'])
+        maxmV = max(mV)
+        minmV = min(mV)
+        cmap = plt.cm.get_cmap('winter')
         for i in np.arange(self.schedule.shape[0]):
-            Fraction = (dcbydtATt[i]-mindcbydtATt)/(maxdcbydtATt-mindcbydtATt)
+            Fraction = (mV[self.schedule[i]]-minmV)/(maxmV-minmV)
             rgba = cmap(Fraction)
             r=rgba[0]
             g=rgba[1]
             b=rgba[2]
-            a=1.0
-            plt.scatter(self.t_dets[i],ptminfZComp00[i],label='minfZ pts',marker='o',c=(r,g,b,a))#np.log10(ptminfZComp00[:]/self.t_dets[:]))
+            a=1
+            assert r<=1
+            assert b<=1
+            plt.scatter(self.t_dets[i],ptminfZComp00[i],marker='o',c=(r,g,b,a))#np.log10(ptminfZComp00[:]/self.t_dets[:]))
             #plt.plot(self.t_dets[i],ptmaxfZComp00[i],color='r',label='maxfZ pt '+str(i),marker='x')
+        #Plot stars not being observed
+        for i in np.arange(self.schedule_startSaved.shape[0]):
+            if(self.schedule_startSaved[i] in np.setdiff1d(self.schedule_startSaved,self.schedule,assume_unique=True)):
+                Fraction = (mV[i]-minmV)/(maxmV-minmV)
+                rgba = cmap(Fraction)
+                r=rgba[0]
+                g=rgba[1]
+                b=rgba[2]
+                a=1
+                assert r<=1
+                assert b<=1
+                plt.scatter(self.myt0plotting[i],self.compatt0[i],color=(r,g,b,a),marker='x')
         plt.xlim((xmin,xmax))
+        plt.ylim((0,max(ptminfZComp00)*1.1))
         plt.xlabel(r'$Integration\ Time\ \tau\ (days)$',weight='bold',fontsize=14)
         plt.ylabel('Completeness',weight='bold',fontsize=14)
+        plt.scatter([nan,nan],[nan,nan],color='b',marker='o',label='Observed')
+        plt.scatter([nan,nan],[nan,nan],color='b',marker='x',label='Not Observed')
+        plt.legend(loc=1)
+        cmap = plt.cm.get_cmap('winter')
+        sc = plt.scatter([nan,nan],[nan,nan],c=[minmV,maxmV],cmap=cmap)
+        cbar = plt.colorbar(sc)
+        lar = np.round([minmV,minmV+0.2*(maxmV-minmV),minmV+0.4*(maxmV-minmV),minmV+0.6*(maxmV-minmV),minmV+0.8*(maxmV-minmV),maxmV],decimals=4)
+        cbar.ax.set_yticklabels([str(lar[0]),str(lar[1]),str(lar[2]),str(lar[3]),str(lar[4]),str(lar[5])])
+        cbar.set_label('Apparent Intensity ()',weight='bold',fontsize=14)#removed ax.
         plt.show(block=False)
         sAYOCTSuperPlotCOLOR.savefig('/home/dean/Documents/SIOSlab/sAYOCTSuperPlotCOLOR'+'.svg')
         #plt.close()
         ###########################################################################
 
         #Plot C/Tau vs mV###################################
-        mVparamFig = plt.figure(90105)
-        plt.close()
+        #mVparamFig = plt.figure(90105)
+        #plt.close()
         ####################################################
 
         #Histogram of Completeness#################################################
@@ -506,7 +533,7 @@ class starkAYO_staticSchedule(SurveySimulation):
         dcbydtATt = np.zeros(self.schedule.shape[0])
         for i in np.arange(self.schedule.shape[0]):#np.arange(self.schedule.shape[0]/10-self.schedule.shape[0]%10):
             dcbydtATt[i] = self.Completeness.dcomp_dt(self.t_dets[i]*u.d, self.TargetList, self.schedule[i], self.fZ[i], fEZ, WA, self.mode, self.Cb[i], self.Csp[i]).to(1/u.d).value
-            plt.plot(self.t_dets[i],dcbydtATt[i],color='g',marker='o',zorder=4)
+            plt.plot(self.t_dets[i],dcbydtATt[i],color='c',marker='o',zorder=4)
 
         
         for i in np.arange((self.schedule_startSaved.shape[0]-(self.schedule_startSaved.shape[0]%10))/10):#Plot 10% of dcbydt lines
@@ -517,7 +544,7 @@ class starkAYO_staticSchedule(SurveySimulation):
         plt.scatter(self.maxdcbydttimes,self.maxdcbydt,color='b',zorder=2)
         xlabel(r'$Integration\ Time\ \tau\ (days)$',weight='bold',fontsize=12)
         ylabel(r'$\frac{dC}{d\tau}$',weight='bold',fontsize=12)
-        plt.plot([0,0],[0,0],color='r',label=r'$\frac{dC}{d\tau}$')
+        plt.plot([0,0],[0,0],color='r',label=r'$\frac{dC}{d\tau}\ (d^{-1})$')
         plt.scatter([1e-8,1e-8],[1e-8,1e-8],color='b',marker='o',label=r'$max(\frac{dC}{d\tau})$')
         plt.scatter([1e-8,1e-8],[1e-8,1e-8],color='k',marker='o',label=r'$\frac{dC}{d\tau}(t0)$')
         plt.scatter([1e-8,1e-8],[1e-8,1e-8],color='g',marker='o',label=r'$\frac{dC}{d\tau}(observed)$')
@@ -1460,7 +1487,8 @@ class starkAYO_staticSchedule(SurveySimulation):
         compatt0 = np.zeros([sInds.shape[0]])
         for j in np.arange(sInds.shape[0]):
             compatt0[j] = self.Completeness.comp_per_intTime(t0[j]*u.d, TL, sInds[i], fZ[i], fEZ, WA, mode, Cb[i], Csp[i])
-        plt.scatter(t0,compatt0,color='k',marker='o',zorder=3)
+        plt.scatter(t0,compatt0,color='k',marker='o',zorder=3,label=r'$C(\tau_{0})$')
+        self.compatt0 = compatt0
         plt.plot([1e-5,1e-5],[0,0],color='k',label='Numerical C')
         plt.plot([1e-5,1e-5],[0,0],color='r',label='Gaussian fit C')
         plt.legend(loc=2)
