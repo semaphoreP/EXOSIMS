@@ -457,7 +457,7 @@ class starkAYO_staticSchedule(SurveySimulation):
         cbar = plt.colorbar(sc)
         lar = np.round([minmV,minmV+0.2*(maxmV-minmV),minmV+0.4*(maxmV-minmV),minmV+0.6*(maxmV-minmV),minmV+0.8*(maxmV-minmV),maxmV],decimals=4)
         cbar.ax.set_yticklabels([str(lar[0]),str(lar[1]),str(lar[2]),str(lar[3]),str(lar[4]),str(lar[5])])
-        cbar.set_label('Apparent Intensity ()',weight='bold',fontsize=14)#removed ax.
+        cbar.set_label('Apparent Intensity (mag)',weight='bold',fontsize=14)#removed ax.
         plt.show(block=False)
         sAYOCTSuperPlotCOLOR.savefig('/home/dean/Documents/SIOSlab/sAYOCTSuperPlotCOLOR'+'.svg')
         #plt.close()
@@ -559,8 +559,6 @@ class starkAYO_staticSchedule(SurveySimulation):
         fig.savefig('/home/dean/Documents/SIOSlab/dCbydTandOptimalSelection2'+'.svg')
         #############################################
 
-        print(saltyburrito)
-
         #Plot dc/dt for each star
         intTimes = np.logspace(-5,5,num=400,base=10.0)
         dcdtFig = plt.figure(9014)
@@ -590,9 +588,10 @@ class starkAYO_staticSchedule(SurveySimulation):
         plt.rc('axes',linewidth=2)
         plt.rc('lines',linewidth=2)
         plt.show(block=False)
+        dcdtFig.savefig('/home/dean/Documents/SIOSlab/dcdtFig'+'.svg')
+        plt.close("all")
 
-
-        print(saltyburrito)
+        #print(saltyburrito)
         #END INIT##################################################################
         
     def choose_next_target(self,old_sInd,sInds,slewTime,intTimes):
