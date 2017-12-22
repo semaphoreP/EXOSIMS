@@ -9,6 +9,12 @@ import random as py_random
 import time
 import json, os.path, copy, re, inspect, subprocess
 import hashlib
+from numpy import nan
+import csv
+try:
+    import cPickle as pickle
+except:
+    import pickle
 
 Logger = logging.getLogger(__name__)
 
@@ -1264,6 +1270,49 @@ class SurveySimulation(object):
                 pickle.dump(tmpDat,fo)
                 self.vprint("Saved cached fZmax to %s"%cachefname)
             return fZmax, fZmaxInds
+
+    def generate_fZ(self, sInds):
+        """Calculates fZ values for each star over an entire orbit of the sun
+        Args:
+            sInds[nStars] - indicies of stars to generate yearly fZ for
+        Returns:
+            fZ[resolution, sInds] where fZ is the zodiacal light for each star
+        """
+        #Generate cache Name########################################################################
+        cachefname = ''#declares cachefname
+        mods =  ['PlanetPopulation','PlanetPhysicalModel','Completeness','TargetList','OpticalSystem']#modules to look at
+        for mod in mods: cachefname += self.modules[mod].__module__.split(".")[-1]#add module name to end of cachefname?
+        cachefname += hashlib.md5(str(self.TargetList.Name)+str(self.TargetList.tint0.to(u.d).value)).hexdigest()#turn cachefname into hashlib
+        cachefname = os.path.join(os.path.split(inspect.getfile(self.__class__))[0],cachefname+os.extsep+'starkfZ')#'t0')#join into filepath and fname
+        ############################################################################################
+
+        #Check if file exists#######################################################################
+        if os.path.isfile(cachefname):#check if file exists
+            self.vprint("Loading cached fZ from %s"%cachefname)
+            with open(cachefname, 'rb') as f:#load from cache
+                tmpfZ = pickle.load(f)
+            return tmpfZ
+
+        #IF the Completeness vs dMag for Each Star File Does Not Exist, Calculate It
+        else:
+            #OS = self.OpticalSystem#Testing to be sure I can remove this
+            #WA = OS.WA0#Testing to be sure I can remove this
+            ZL = self.ZodiacalLight
+            TL = self.TargetList
+            Obs = self.Observatory
+            startTime = np.zeros(sInds.shape[0])*u.d + self.TimeKeeping.currentTimeAbs#Array of current times
+            resolution = [j for j in range(1000)]
+            fZ = np.zeros([sInds.shape[0], len(resolution)])
+            dt = 365.25/len(resolution)*u.d
+            for i in xrange(len(resolution)):#iterate through all times of year
+                time = startTime + dt*resolution[i]
+                fZ[:,i] = ZL.fZ(Obs, TL, sInds, time, self.mode)
+            
+            with open(cachefname, "wb") as fo:
+                wr = csv.writer(fo, quoting=csv.QUOTE_ALL)
+                pickle.dump(fZ,fo)
+                self.vprint("Saved cached 1st year fZ to %s"%cachefname)
+            return fZ
 
 def array_encoder(obj):
     r"""Encodes numpy arrays, astropy Times, and astropy Quantities, into JSON.

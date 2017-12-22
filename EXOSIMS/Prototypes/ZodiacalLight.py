@@ -137,3 +137,4 @@ class ZodiacalLight(object):
                 MVsun))*2*fbeta/d.to('AU').value**2/u.arcsec**2
         
         return fEZ
+
