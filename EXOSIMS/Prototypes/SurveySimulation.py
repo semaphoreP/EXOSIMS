@@ -1214,6 +1214,15 @@ class SurveySimulation(object):
         return cachefname
 
     def calcfZmin(self, sInds, fZ_startSaved):
+        """Finds the minimum zodiacal light values for each star over an entire orbit of the sun not including keeoput angles
+        Args:
+            sInds - the star indicies we would like fZmin and fZminInds returned for
+            fZ_startSaved[sInds,1000] - the fZ for each sInd for 1 year separated into 1000 timesegments
+        Returns:
+            fZmin[sInds] - the minimum fZ
+            fZminInds[sInds] - the indicies as a part of 1000 where the fZminInd occurs
+        """
+
         tmpfZ = np.asarray(fZ_startSaved)
         fZ_matrix = tmpfZ[sInds,:]#Apply previous filters to fZ_startSaved[sInds, 1000]
         #Find minimum fZ of each star
@@ -1226,7 +1235,18 @@ class SurveySimulation(object):
         return fZmin, fZminInds
 
     def calcfZmax(self,Obs,TL,TK,sInds,mode,fZ_startSaved):
-
+        """Finds the maximum zodiacal light values for each star over an entire orbit of the sun not including keeoput angles
+        Args:
+            Obs - Needed for determining stars in keepout
+            TL - Needed for determining stars in keepout
+            TK - Needed for determining current mission time
+            sInds - the star indicies we would like fZmax and fZmaxInds returned for
+            mode - necessary for determining star keepout regions
+            fZ_startSaved[sInds,1000] - the fZ for each sInd for 1 year separated into 1000 timesegments
+        Returns:
+            fZmax[sInds] - the maximum fZ where maxfZ occurs
+            fZmaxInds[sInds] - the indicies as a part of 1000 where the fZmaxInd occurs
+        """
         #Generate cache Name########################################################################
         cachefname = self.cachefname + 'fZmax'
 
