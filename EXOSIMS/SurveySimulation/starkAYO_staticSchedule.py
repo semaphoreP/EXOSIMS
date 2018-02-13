@@ -103,7 +103,7 @@ class starkAYO_staticSchedule(SurveySimulation):
         self.calcdCbydTvsTforAllStars(sInds, TL, fZ, fEZ, WA, mode, Cb, Csp)
         self.load_dCbydt_finalTL()
 
-        sInds[(self.maxdcbydt>(self.dCbydt_finalTL.value*0.95))]
+        sInds[(self.maxdcbydt>(self.dCbydt_finalTL*0.95))]
 
         ###############################################################################
 
@@ -386,7 +386,7 @@ class starkAYO_staticSchedule(SurveySimulation):
             for i in np.arange(sInds.shape[0]):
                 self.vprint('sInds Fraction '+str(float(i)/sInds.shape[0]))
                 t0[i] = self.maxdcbydttimes[i]#intTimes[self.maxdcbydtinds[i]]
-                if(self.maxdcbydt[i] > self.dCbydt_finalTL.value+1e-6):#4*1e-3
+                if(self.maxdcbydt[i] > self.dCbydt_finalTL+1e-6):#4*1e-3
                     t0[i] = scipy.optimize.golden(func,tol=1e-5,brack=None,args=(TL, sInds[i], fZ[i], fEZ, WA, mode, Cb[i], Csp[i],self.dCbydt_finalTL.value),full_output=False)#original working version
                 if(t0[i]<1e-6):
                     t0[i] = 1e-3
