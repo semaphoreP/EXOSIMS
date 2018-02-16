@@ -96,8 +96,8 @@ class TimeKeeping(object):
         self.missionFinishAbs = self.missionStart + self.missionLife + self.extendedLife
         
         # initialize values updated by functions
-        self.currentTimeNorm = 0.*u.day
-        self.currentTimeAbs = self.missionStart
+        self.tSinceMissionStart#the time elapsed since mission start #self.currentTimeNorm = 0.*u.day#the current time
+        self.currentTimeAbs = self.missionStart#the current time in mjd
         
         # initialize observing block times arrays
         self.OBnumber = 0
@@ -131,98 +131,150 @@ class TimeKeeping(object):
         
         return 'TimeKeeping instance at %.6f days' % self.currentTimeNorm.to('day').value
 
-    def mission_is_over(self):
-        r"""Is the time allocated for the mission used up?
-        
-        This supplies an abstraction around the test:
-            (currentTimeNorm > missionFinishNorm)
-        so that users of the class do not have to perform arithmetic
-        on class variables.
-        
+    def get_EventStack(self):
+        """Returns the current Event Stack
+        Return:
+            EventStack[{'inst':'instName','tStart':startTime,'tEnd':endTime,'state':'scState'},...,{'inst','tStart','tEnd','state'}]
+                - list of observations
+        """
+        return self.EventStack
+
+    def get_tEstarts_tEends(self):
+        """get all Event start and end times
         Returns:
-            is_over (Boolean):
-                True if the mission time is used up, else False.
+            tEstarts[#events] - all Event Start Times
+            tEends[#events] - all Event End Times
         """
-        
-        is_over = (self.currentTimeNorm >= self.missionFinishNorm)
-        
-        return is_over
+        tEstarts = [EventStack[i]['tStart'] for i in np.arange(0,len(EventStack))]
+        tEends = [EventStack[i]['tEnd'] for i in np.arange(0,len(EventStack))]
+        return tEstarts, tEends
 
-    def wait(self):
-        """Waits a certain time in case no target can be observed at current time.
-        
-        This method is called in the run_sim() method of the SurveySimulation 
-        class object. In the prototype version, it simply allocate a temporal block 
-        of 1 day.
-        
-        """
-        self.allocate_time(self.waitTime)
-
-    def allocate_time(self, dt):
-        r"""Allocate a temporal block of width dt, advancing to the next OB if needed.
-        
-        Advance the mission time by dt units. If this requires moving into the next OB,
-        call the next_observing_block() method of the TimeKeeping class object.
-        
+    def createEvent(self,inst,tEstartn,tEendn,scState='other'):
+        """Creates a new event in the event stack
         Args:
-            dt (astropy Quantity):
-                Temporal block allocated in units of day
-        
+            inst - instrument the event is being scheduled for
+            tEstart - starting time of the event in mjd
+            tEend - end time of the event in mjd
+            scState - spacecraft state during event i.e. 'detecting' 'characterizing' 'other'
         """
+        #Check validity of proposed event
+        assert isinstance(tEstartn, (int, long, float)), "tEstartn is not a number"
+        assert isinstance(tEendn, (int, long, float)), "tEendn is not a number"
+        assert isinstance(inst, basestring), "inst is not a string"#Python 3.x version isinstance(s, str)
+        assert isinstance(scState, basestring), "inst is not a string"#Python 3.x version isinstance(s, str)
+        assert tEstart >= self.currentTimeAbs, "Need tEstart >= %f, got %f"%(self.currentTimeAbs, tEstart)#new event must occur after current time
+        assert tEstart <= tEend, "Need tEstart <= %f, got %f"%(tEend, tEstart)#the end of the new event must occur at or after the start of the event
+        [tEstarts, tEends] = get_tEstarts_tEends()
+        for i in np.arange(0,len(tEends)):
+            assert not (tStart[i] <= tEstartn <= tEnd[i]),"Need NOT(%f < tEstartn < %f) where i=%f, got %f"%(tEstarts[i], i, tEends[i], tEstartn)#start of new event must occur outside bounds of existing events
+            assert not (tStart[i] <= tEendn <= tEnd[i]),"Need NOT(%f < tEendn < %f) where i=%f, got %f"%(tEstarts[i], i, tEends[i], tEendn)#end of new event must occur outside bounds of existing events
+            assert not ((tEstartn < tEstarts[i]) && (tEends[i] < tEendn)), "Need NOT((tEstartn < %f) && (%f < tEendn)) where i=%f, got tEstartn=%f and tEendn=%f"%(tEstarts[i], tEends[i], i, tEstartn, tEendn)#new event cannot span an existing event
         
-        if dt == 0:
-            return
-            
-        self.currentTimeNorm += dt
-        self.currentTimeAbs += dt
-        
-        if not self.mission_is_over() and (self.currentTimeNorm 
-                >= self.OBendTimes[self.OBnumber]):
-            self.next_observing_block()
+        #Append the Event to the EventStack
+        try:    
+            self.EventStack.append({'inst':inst,'tStart':tEstartn,'tEnd':tEendn,'state':scState})#appends event to the event stack
+        except:
+            self.EventStack = list()#create EventStack and append the event to it
+            self.EventStack.append({'inst':inst,'tStart':tEstartn,'tEnd':tEendn,'state':scState})#appends event to the event stack
 
-    def next_observing_block(self, dt=None):
-        """Defines the next observing block, start and end times.
-        
-        This method is called in the allocate_time() method of the TimeKeeping 
-        class object, when the allocated time requires moving outside of the current OB.
-        
-        If no OB duration was specified, a new Observing Block is created for 
-        each observation in the SurveySimulation module. 
-        
+    def deleteEvent(self,tStart,tEnd):
+        """Deletes event with specified tEstart and tEend
         """
         
-        # number of blocks to wait
-        nwait = (1 - self.missionPortion)/self.missionPortion
+        return ???? #something saying the action was completed
+
+    # def mission_is_over(self):
+    #     r"""Is the time allocated for the mission used up?
         
-        # For the default case called in SurveySimulation, OBendTime is current time
-        # Note: the next OB must not happen after mission finish
-        if dt is not None:
-            self.OBendTimes[self.OBnumber] = self.currentTimeNorm
-            nextStart = min(self.OBendTimes[self.OBnumber] + nwait*dt, 
-                    self.missionFinishNorm)
-            nextEnd = self.missionFinishNorm
-        # else, the OB duration is a fixed value
-        else:
-            dt = self.OBduration
-            nextStart = min(self.OBendTimes[self.OBnumber] + nwait*dt, 
-                    self.missionFinishNorm)
-            maxOBduration = (self.missionFinishNorm - nextStart)*self.missionPortion
-            nextEnd = nextStart + min(dt, maxOBduration)
+    #     This supplies an abstraction around the test:
+    #         (currentTimeNorm > missionFinishNorm)
+    #     so that users of the class do not have to perform arithmetic
+    #     on class variables.
         
-        # update OB arrays
-        self.OBstartTimes = np.append(self.OBstartTimes.to('day').value, 
-                nextStart.to('day').value)*u.day
-        self.OBendTimes = np.append(self.OBendTimes.to('day').value, 
-                nextEnd.to('day').value)*u.day
-        self.OBnumber += 1
+    #     Returns:
+    #         is_over (Boolean):
+    #             True if the mission time is used up, else False.
+    #     """
         
-        # If mission is not over, move to the next OB, and update observation start time
-        self.allocate_time(nextStart - self.currentTimeNorm)
-        if self.mission_is_over():
-            self.OBstartTimes = self.OBstartTimes[:-1]
-            self.OBendTimes = self.OBendTimes[:-1]
-            self.OBnumber -= 1
-        else:
-            self.obsStart = nextStart
-            self.vprint('OB%s: previous block was %s long, advancing %s.'%(self.OBnumber+1, 
-                    dt.round(2), (nwait*dt).round(2)))
+    #     is_over = (self.currentTimeNorm >= self.missionFinishNorm)
+        
+    #     return is_over
+
+    # def wait(self):
+    #     """Waits a certain time in case no target can be observed at current time.
+        
+    #     This method is called in the run_sim() method of the SurveySimulation 
+    #     class object. In the prototype version, it simply allocate a temporal block 
+    #     of 1 day.
+        
+    #     """
+    #     self.allocate_time(self.waitTime)
+
+    # def allocate_time(self, dt):
+    #     r"""Allocate a temporal block of width dt, advancing to the next OB if needed.
+        
+    #     Advance the mission time by dt units. If this requires moving into the next OB,
+    #     call the next_observing_block() method of the TimeKeeping class object.
+        
+    #     Args:
+    #         dt (astropy Quantity):
+    #             Temporal block allocated in units of day
+        
+    #     """
+        
+    #     if dt == 0:
+    #         return
+            
+    #     self.currentTimeNorm += dt
+    #     self.currentTimeAbs += dt
+        
+    #     if not self.mission_is_over() and (self.currentTimeNorm 
+    #             >= self.OBendTimes[self.OBnumber]):
+    #         self.next_observing_block()
+
+    # def next_observing_block(self, dt=None):
+    #     """Defines the next observing block, start and end times.
+        
+    #     This method is called in the allocate_time() method of the TimeKeeping 
+    #     class object, when the allocated time requires moving outside of the current OB.
+        
+    #     If no OB duration was specified, a new Observing Block is created for 
+    #     each observation in the SurveySimulation module. 
+        
+    #     """
+        
+    #     # number of blocks to wait
+    #     nwait = (1 - self.missionPortion)/self.missionPortion
+        
+    #     # For the default case called in SurveySimulation, OBendTime is current time
+    #     # Note: the next OB must not happen after mission finish
+    #     if dt is not None:
+    #         self.OBendTimes[self.OBnumber] = self.currentTimeNorm
+    #         nextStart = min(self.OBendTimes[self.OBnumber] + nwait*dt, 
+    #                 self.missionFinishNorm)
+    #         nextEnd = self.missionFinishNorm
+    #     # else, the OB duration is a fixed value
+    #     else:
+    #         dt = self.OBduration
+    #         nextStart = min(self.OBendTimes[self.OBnumber] + nwait*dt, 
+    #                 self.missionFinishNorm)
+    #         maxOBduration = (self.missionFinishNorm - nextStart)*self.missionPortion
+    #         nextEnd = nextStart + min(dt, maxOBduration)
+        
+    #     # update OB arrays
+    #     self.OBstartTimes = np.append(self.OBstartTimes.to('day').value, 
+    #             nextStart.to('day').value)*u.day
+    #     self.OBendTimes = np.append(self.OBendTimes.to('day').value, 
+    #             nextEnd.to('day').value)*u.day
+    #     self.OBnumber += 1
+        
+    #     # If mission is not over, move to the next OB, and update observation start time
+    #     self.allocate_time(nextStart - self.currentTimeNorm)
+    #     if self.mission_is_over():
+    #         self.OBstartTimes = self.OBstartTimes[:-1]
+    #         self.OBendTimes = self.OBendTimes[:-1]
+    #         self.OBnumber -= 1
+    #     else:
+    #         self.obsStart = nextStart
+    #         self.vprint('OB%s: previous block was %s long, advancing %s.'%(self.OBnumber+1, 
+    #                 dt.round(2), (nwait*dt).round(2)))
