@@ -196,8 +196,11 @@ class TimeKeeping(object):
             self.EventStack = list()#create EventStack and append the event to it
             self.EventStack.append({'inst':inst,'tStart':tEstartn,'tEnd':tEendn,'state':scState})#appends event to the event stack
 
-    def deleteEvent(self,tEstart,tEend):
+    def deleteEvent(self,inst,tEstart,tEend,scState):
         """Deletes event with specified tEstart and tEend
+        Args:
+            inst - instrument name in EventStack
+            tEstart - 
         """
         #find index in EventStack with tEstart and tEend
         def findEventIndex(EventStack, key, value):
@@ -207,8 +210,11 @@ class TimeKeeping(object):
             return -1
         myIndex = findEventIndex(self.EventStack,'tEstart',tEstart)
         myIndex2 = findEventIndex(self.EventStack,'tEend',tEend)
-        assert myIndex == myIndex2, "The indicies of these do not match (there may be multiple events with tEstart and tEend)"
+        myIndex3 = findEventIndex(self.EventStack,'tEend',tEend)
+        myIndex4 = findEventIndex(self.EventStack,'tEend',tEend)
 
+        assert myIndex == myIndex2 == myIndex3 == myIndex4, "The indicies of these do not match (there may be multiple of the same event)"
+        assert not (myIndex == myIndex2 == myIndex3 == myIndex4 == -1), "This event does not exist in the EventStack"
         #delete index in EventStack with index
         self.EventStack.pop([myIndex])
 
