@@ -120,6 +120,9 @@ class TimeKeeping(object):
                 dat = self.__dict__[att]
                 self._outspec[att] = dat.value if isinstance(dat,(u.Quantity,Time)) else dat
 
+        #initialize the Event Stack
+        self.EventStack = self.initEventStack()
+
     def __str__(self):
         r"""String representation of the TimeKeeping object.
         
@@ -131,11 +134,27 @@ class TimeKeeping(object):
         
         return 'TimeKeeping instance at %.6f days' % self.currentTimeNorm.to('day').value
 
+    def initEventStack(self):
+        """Initialize the EventStack
+        """
+        EventStack = list()#create EventStack and append the event to it
+        #create missionStart Event
+        EventStack.append({'inst':'sim','tEstart':self.missionStart,'tEend':self.missionStart,'state':'missionEnd'})#appends event to the event stack
+        #create missionEnd Event
+        EventStack.append({'inst':'sim','tEstart':self.missionEnd,'tEend':self.missionEnd,'state':'missionEnd'})#appends event to the event stack
+        
+        #create "other" instrument events
+        try:
+            self._outspec['telescopeInUse']
+        except:
+        
+        return EventStack
+
     def get_EventStack(self):
         """Returns the current Event Stack
         Return:
             EventStack[{'inst':'instName','tStart':startTime,'tEnd':endTime,'state':'scState'},...,{'inst','tStart','tEnd','state'}]
-                - list of observations
+                - List[Dict] of Events
         """
         return self.EventStack
 
@@ -145,8 +164,8 @@ class TimeKeeping(object):
             tEstarts[#events] - all Event Start Times
             tEends[#events] - all Event End Times
         """
-        tEstarts = [EventStack[i]['tStart'] for i in np.arange(0,len(EventStack))]
-        tEends = [EventStack[i]['tEnd'] for i in np.arange(0,len(EventStack))]
+        tEstarts = [EventStack[i]['tEstart'] for i in np.arange(0,len(EventStack))]
+        tEends = [EventStack[i]['tEend'] for i in np.arange(0,len(EventStack))]
         return tEstarts, tEends
 
     def createEvent(self,inst,tEstartn,tEendn,scState='other'):
@@ -166,8 +185,8 @@ class TimeKeeping(object):
         assert tEstart <= tEend, "Need tEstart <= %f, got %f"%(tEend, tEstart)#the end of the new event must occur at or after the start of the event
         [tEstarts, tEends] = get_tEstarts_tEends()
         for i in np.arange(0,len(tEends)):
-            assert not (tStart[i] <= tEstartn <= tEnd[i]),"Need NOT(%f < tEstartn < %f) where i=%f, got %f"%(tEstarts[i], i, tEends[i], tEstartn)#start of new event must occur outside bounds of existing events
-            assert not (tStart[i] <= tEendn <= tEnd[i]),"Need NOT(%f < tEendn < %f) where i=%f, got %f"%(tEstarts[i], i, tEends[i], tEendn)#end of new event must occur outside bounds of existing events
+            assert not (tEstarts[i] <= tEstartn <= tEends[i]),"Need NOT(%f < tEstartn < %f) where i=%f, got %f"%(tEstarts[i], i, tEends[i], tEstartn)#start of new event must occur outside bounds of existing events
+            assert not (tEstarts[i] <= tEendn <= tEends[i]),"Need NOT(%f < tEendn < %f) where i=%f, got %f"%(tEstarts[i], i, tEends[i], tEendn)#end of new event must occur outside bounds of existing events
             assert not ((tEstartn < tEstarts[i]) && (tEends[i] < tEendn)), "Need NOT((tEstartn < %f) && (%f < tEendn)) where i=%f, got tEstartn=%f and tEendn=%f"%(tEstarts[i], tEends[i], i, tEstartn, tEendn)#new event cannot span an existing event
         
         #Append the Event to the EventStack
@@ -177,11 +196,21 @@ class TimeKeeping(object):
             self.EventStack = list()#create EventStack and append the event to it
             self.EventStack.append({'inst':inst,'tStart':tEstartn,'tEnd':tEendn,'state':scState})#appends event to the event stack
 
-    def deleteEvent(self,tStart,tEnd):
+    def deleteEvent(self,tEstart,tEend):
         """Deletes event with specified tEstart and tEend
         """
-        
-        return ???? #something saying the action was completed
+        #find index in EventStack with tEstart and tEend
+        def findEventIndex(EventStack, key, value):
+            for i, dic in enumerate(EventStack):
+                if dic[key] == value:
+                    return i
+            return -1
+        myIndex = findEventIndex(self.EventStack,'tEstart',tEstart)
+        myIndex2 = findEventIndex(self.EventStack,'tEend',tEend)
+        assert myIndex == myIndex2, "The indicies of these do not match (there may be multiple events with tEstart and tEend)"
+
+        #delete index in EventStack with index
+        self.EventStack.pop([myIndex])
 
     # def mission_is_over(self):
     #     r"""Is the time allocated for the mission used up?
