@@ -2,6 +2,7 @@ from EXOSIMS.util.vprint import vprint
 import numpy as np
 import astropy.units as u
 from astropy.time import Time
+import math
 
 class TimeKeeping(object):
     """TimeKeeping class template.
@@ -121,7 +122,7 @@ class TimeKeeping(object):
                 self._outspec[att] = dat.value if isinstance(dat,(u.Quantity,Time)) else dat
 
         #initialize the Event Stack
-        self.EventStack = self.initEventStack()
+        self.initEventStack(specs)
 
     def __str__(self):
         r"""String representation of the TimeKeeping object.
@@ -134,7 +135,7 @@ class TimeKeeping(object):
         
         return 'TimeKeeping instance at %.6f days' % self.currentTimeNorm.to('day').value
 
-    def initEventStack(self):
+    def initEventStack(self,specs):
         """Initialize the EventStack
         """
         EventStack = list()#create EventStack and append the event to it
@@ -143,12 +144,24 @@ class TimeKeeping(object):
         #create missionEnd Event
         EventStack.append({'inst':'sim','tEstart':self.missionEnd,'tEend':self.missionEnd,'state':'missionEnd'})#appends event to the event stack
         
+        #create TK global attribute EventStack for use in createEvent()
+        self.EventStack = EventStack
         #create "other" instrument events
         try:
-            self._outspec['telescopeInUse']
+            inst0startTimes = specs['telescopeInUse']['startTimes']#defined relative to missionStart
+            inst0endTimes = specs['telescopeInUse']['endTimes']#defined relative to missionStart
+            for i in np.arange(0,startTimes.shape[0]):
+                createEvent('inst0',startTimes[i]+self.missionStart,endTimes[i]+self.missionStart,'other')
         except:
-            print(taco)
-        return EventStack
+            pass
+        try:
+            blockPeriod = specs['telescopeInUse']['blockPeriod']#block repitition period in days
+            blockDuration = specs['telescopeInUse']['blockDuration']#block duration in days
+            assert blockPeriod >= blockDuration, "blockPeriod MUST be greater than blockDuration"
+            for i in np.arange(0,math.floor(blockPeriod/self.missionLife.to(u.day).value)):#iterate through number of exclusion blocks created
+                createEvent('inst0',(i+1)*blockPeriod-blockDuration+self.missionStart,(i+1)*blockPeriod+self.missionStart,'other')
+        except:
+            pass
 
     def get_EventStack(self):
         """Returns the current Event Stack
