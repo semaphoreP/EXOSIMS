@@ -86,33 +86,33 @@ class TimeKeeping(object):
         # set up state variables
         # tai scale specified because the default, utc, requires accounting for leap
         # seconds, causing warnings from astropy.time when time-deltas are added
-        self.missionStart = Time(float(missionStart), format='mjd', scale='tai')
-        self.missionLife = float(missionLife)*u.year
-        self.extendedLife = float(extendedLife)*u.year
-        self.missionPortion = float(missionPortion)
+        self.missionStart = Time(float(missionStart), format='mjd', scale='tai')#The mission start in MJD
+        self.missionLife = float(missionLife)*u.year#length of the mission from start to finish in years
+        #self.extendedLife = float(extendedLife)*u.year#additional mission time beyond missionLife in years
+        #self.missionPortion = float(missionPortion)
         
         # set values derived from quantities above
-        self.missionFinishNorm = self.missionLife.to('day') + self.extendedLife.to('day')
-        self.missionFinishAbs = self.missionStart + self.missionLife + self.extendedLife
+        #self.missionFinishNorm = self.missionLife.to('day') + self.extendedLife.to('day')
+        self.missionEnd = self.missionStart + self.missionLife#The end time of the mission in MJD #self.missionFinishAbs = self.missionStart + self.missionLife + self.extendedLife
         
         # initialize values updated by functions
-        self.tSinceMissionStart#the time elapsed since mission start #self.currentTimeNorm = 0.*u.day#the current time
+        self.tSinceMissionStart = 0.*u.day#the time elapsed since mission start #self.currentTimeNorm = 0.*u.day#the current time
         self.currentTimeAbs = self.missionStart#the current time in mjd
         
         # initialize observing block times arrays
-        self.OBnumber = 0
-        self.OBduration = float(OBduration)*u.day
-        self.OBstartTimes = [0.]*u.day
-        maxOBduration = self.missionFinishNorm*self.missionPortion
-        self.OBendTimes = [min(self.OBduration, maxOBduration).to('day').value]*u.day
+        #self.OBnumber = 0
+        #self.OBduration = float(OBduration)*u.day
+        #self.OBstartTimes = [0.]*u.day
+        #maxOBduration = self.missionFinishNorm*self.missionPortion
+        #self.OBendTimes = [min(self.OBduration, maxOBduration).to('day').value]*u.day
         
         # initialize single observation START and END times
-        self.obsStart = 0.*u.day
-        self.obsEnd = 0.*u.day
+        #self.obsStart = 0.*u.day
+        #self.obsEnd = 0.*u.day
         
         # initialize wait parameters
-        self.waitTime = float(waitTime)*u.day
-        self.waitMultiple = float(waitMultiple)
+        #self.waitTime = float(waitTime)*u.day
+        #self.waitMultiple = float(waitMultiple)
         
         # populate outspec
         for att in self.__dict__.keys():
@@ -147,7 +147,7 @@ class TimeKeeping(object):
         try:
             self._outspec['telescopeInUse']
         except:
-        
+            print(taco)
         return EventStack
 
     def get_EventStack(self):
@@ -185,9 +185,9 @@ class TimeKeeping(object):
         assert tEstart <= tEend, "Need tEstart <= %f, got %f"%(tEend, tEstart)#the end of the new event must occur at or after the start of the event
         [tEstarts, tEends] = get_tEstarts_tEends()
         for i in np.arange(0,len(tEends)):
-            assert not (tEstarts[i] <= tEstartn <= tEends[i]),"Need NOT(%f < tEstartn < %f) where i=%f, got %f"%(tEstarts[i], i, tEends[i], tEstartn)#start of new event must occur outside bounds of existing events
-            assert not (tEstarts[i] <= tEendn <= tEends[i]),"Need NOT(%f < tEendn < %f) where i=%f, got %f"%(tEstarts[i], i, tEends[i], tEendn)#end of new event must occur outside bounds of existing events
-            assert not ((tEstartn < tEstarts[i]) && (tEends[i] < tEendn)), "Need NOT((tEstartn < %f) && (%f < tEendn)) where i=%f, got tEstartn=%f and tEendn=%f"%(tEstarts[i], tEends[i], i, tEstartn, tEendn)#new event cannot span an existing event
+            assert(not (tEstarts[i] <= tEstartn <= tEends[i]),"Need NOT(%f < tEstartn < %f) where i=%f, got %f" % (tEstarts[i], i, tEends[i], tEstartn))#start of new event must occur outside bounds of existing events
+            assert(not (tEstarts[i] <= tEendn <= tEends[i]),"Need NOT(%f < tEendn < %f) where i=%f, got %f" % (tEstarts[i], i, tEends[i], tEendn))#end of new event must occur outside bounds of existing events
+            assert(not ((tEstartn < tEstarts[i]) and (tEends[i] < tEendn)), "Need NOT((tEstartn < %f) && (%f < tEendn)) where i=%f, got tEstartn=%f and tEendn=%f" % (tEstarts[i], tEends[i], i, tEstartn, tEendn)) #new event cannot span an existing event
         
         #Append the Event to the EventStack
         try:    
