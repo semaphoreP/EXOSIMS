@@ -101,7 +101,7 @@ class TimeKeeping(object):
         self.currentTimeAbs = self.missionStart#the current time in mjd
         
         # initialize observing block times arrays
-        #self.OBnumber = 0
+        self.OBnumber = 0 #number of detection observations made
         #self.OBduration = float(OBduration)*u.day
         #self.OBstartTimes = [0.]*u.day
         #maxOBduration = self.missionFinishNorm*self.missionPortion
@@ -231,22 +231,22 @@ class TimeKeeping(object):
         #delete index in EventStack with index
         self.EventStack.pop([myIndex])
 
-    # def mission_is_over(self):
-    #     r"""Is the time allocated for the mission used up?
+    def mission_is_over(self):
+        r"""Is the time allocated for the mission used up?
         
-    #     This supplies an abstraction around the test:
-    #         (currentTimeNorm > missionFinishNorm)
-    #     so that users of the class do not have to perform arithmetic
-    #     on class variables.
+        This supplies an abstraction around the test:
+            (currentTimeNorm > missionFinishNorm)
+        so that users of the class do not have to perform arithmetic
+        on class variables.
         
-    #     Returns:
-    #         is_over (Boolean):
-    #             True if the mission time is used up, else False.
-    #     """
+        Returns:
+            is_over (Boolean):
+                True if the mission time is used up, else False.
+        """
         
-    #     is_over = (self.currentTimeNorm >= self.missionFinishNorm)
+        is_over = (self.tSinceMissionStart >= self.missionLife)
         
-    #     return is_over
+        return is_over
 
     # def wait(self):
     #     """Waits a certain time in case no target can be observed at current time.
