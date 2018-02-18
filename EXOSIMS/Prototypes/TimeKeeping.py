@@ -158,7 +158,7 @@ class TimeKeeping(object):
             blockPeriod = specs['telescopeInUse']['blockPeriod']#block repitition period in days
             blockDuration = specs['telescopeInUse']['blockDuration']#block duration in days
             assert blockPeriod >= blockDuration, "blockPeriod MUST be greater than blockDuration"
-            for i in np.arange(0,math.floor(blockPeriod/self.missionLife.to(u.day).value)):#iterate through number of exclusion blocks created
+            for i in np.arange(0,math.floor(blockPeriod/self.missionLife.to('day').value)):#iterate through number of exclusion blocks created
                 createEvent('inst0',(i+1)*blockPeriod-blockDuration+self.missionStart,(i+1)*blockPeriod+self.missionStart,'other')
         except:
             pass
@@ -166,7 +166,7 @@ class TimeKeeping(object):
     def get_EventStack(self):
         """Returns the current Event Stack
         Return:
-            EventStack[{'inst':'instName','tStart':startTime,'tEnd':endTime,'state':'scState'},...,{'inst','tStart','tEnd','state'}]
+            EventStack[{'inst':'instName','tStart':startTime,'tEnd':endTime,'state':'opType'},...,{'inst','tStart','tEnd','state'}]
                 - List[Dict] of Events
         """
         return self.EventStack
@@ -181,19 +181,19 @@ class TimeKeeping(object):
         tEends = [EventStack[i]['tEend'] for i in np.arange(0,len(EventStack))]
         return tEstarts, tEends
 
-    def createEvent(self,inst,tEstartn,tEendn,scState='other'):
+    def createEvent(self,inst,tEstartn,tEendn,opType='other'):
         """Creates a new event in the event stack
         Args:
             inst - instrument the event is being scheduled for
             tEstart - starting time of the event in mjd
             tEend - end time of the event in mjd
-            scState - spacecraft state during event i.e. 'detecting' 'characterizing' 'other'
+            opType - spacecraft state during event i.e. 'detecting' 'characterizing' 'other'
         """
         #Check validity of proposed event
         assert isinstance(tEstartn, (int, long, float)), "tEstartn is not a number"
         assert isinstance(tEendn, (int, long, float)), "tEendn is not a number"
         assert isinstance(inst, basestring), "inst is not a string"#Python 3.x version isinstance(s, str)
-        assert isinstance(scState, basestring), "inst is not a string"#Python 3.x version isinstance(s, str)
+        assert isinstance(opType, basestring), "inst is not a string"#Python 3.x version isinstance(s, str)
         assert tEstart >= self.currentTimeAbs, "Need tEstart >= %f, got %f"%(self.currentTimeAbs, tEstart)#new event must occur after current time
         assert tEstart <= tEend, "Need tEstart <= %f, got %f"%(tEend, tEstart)#the end of the new event must occur at or after the start of the event
         [tEstarts, tEends] = get_tEstarts_tEends()
@@ -204,16 +204,18 @@ class TimeKeeping(object):
         
         #Append the Event to the EventStack
         try:    
-            self.EventStack.append({'inst':inst,'tStart':tEstartn,'tEnd':tEendn,'state':scState})#appends event to the event stack
+            self.EventStack.append({'inst':inst,'tStart':tEstartn,'tEnd':tEendn,'state':opType})#appends event to the event stack
         except:
             self.EventStack = list()#create EventStack and append the event to it
-            self.EventStack.append({'inst':inst,'tStart':tEstartn,'tEnd':tEendn,'state':scState})#appends event to the event stack
+            self.EventStack.append({'inst':inst,'tStart':tEstartn,'tEnd':tEendn,'state':opType})#appends event to the event stack
 
-    def deleteEvent(self,inst,tEstart,tEend,scState):
+    def deleteEvent(self,inst,tEstart,tEend,opType):
         """Deletes event with specified tEstart and tEend
         Args:
             inst - instrument name in EventStack
-            tEstart - 
+            tEstart - event start time in EventStack
+            tEend - event end time in EventStack
+            opType - spacecraft state
         """
         #find index in EventStack with tEstart and tEend
         def findEventIndex(EventStack, key, value):
@@ -223,13 +225,30 @@ class TimeKeeping(object):
             return -1
         myIndex = findEventIndex(self.EventStack,'tEstart',tEstart)
         myIndex2 = findEventIndex(self.EventStack,'tEend',tEend)
-        myIndex3 = findEventIndex(self.EventStack,'tEend',tEend)
-        myIndex4 = findEventIndex(self.EventStack,'tEend',tEend)
+        myIndex3 = findEventIndex(self.EventStack,'inst',inst)
+        myIndex4 = findEventIndex(self.EventStack,'opType',opType)
 
         assert myIndex == myIndex2 == myIndex3 == myIndex4, "The indicies of these do not match (there may be multiple of the same event)"
         assert not (myIndex == myIndex2 == myIndex3 == myIndex4 == -1), "This event does not exist in the EventStack"
         #delete index in EventStack with index
         self.EventStack.pop([myIndex])
+
+    def get_nextEvent(self):
+        """Finds the next Event in the stack and returns all details
+        Returns:
+            {}
+        """
+        def findEventIndex(EventStack, key, value):
+            for i, dic in enumerate(EventStack):
+                if dic[key] == value:
+                    return i
+            return -1
+
+        #[tEstarts, tEends] = self.get_tEstarts_tEends()#retrieve list of event start and end times
+        #technically min(tEstarts) should get the correct time
+        eventIndex = findEventIndex(self.EventStack,'tEstart',self.tSinceMissionStart.to('day').value)
+
+        return self.EventStack[eventIndex]
 
     def mission_is_over(self):
         r"""Is the time allocated for the mission used up?

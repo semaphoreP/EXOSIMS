@@ -295,8 +295,25 @@ class SurveySimulation(object):
         cnt = 0
         while not TK.mission_is_over():
             
+            #Get Mission Time
             # save the start time of this observation (BEFORE any OH/settling/slew time)
-            TK.obsStart = TK.currentTimeNorm.to('day')
+            TK.obsStart = TK.tSinceMissionStart.to('day')
+
+            #Find Next Event In Stack
+            nextEvent = TK.GetNextEvent()
+            if(nextEvent['opType'] == 'start'):
+                #do start thing
+            elif(nextEvent['opType'] == 'end'):
+                #do end thing
+            elif(nextEvent['opType'] == 'telescopeInUse'):
+                #telescopeInUse so do nothing
+            elif(nextEvent['opType'] == 'characterization'):
+                #do characterization thing
+            elif(nextEvent['opType'] == 'detection'):
+            else:
+                #default is detection
+
+            #Advance time to end of event
             
             # acquire the NEXT TARGET star index and create DRM
             DRM, sInd, det_intTime = self.next_target(sInd, det_mode)
@@ -305,7 +322,7 @@ class SurveySimulation(object):
             if sInd is not None:
                 cnt += 1
                 # get the index of the selected target for the extended list
-                if TK.currentTimeNorm > TK.missionLife and len(self.starExtended) == 0:
+                if TK.tSinceMissionStart > TK.missionLife and len(self.starExtended) == 0:
                     for i in range(len(self.DRM)):
                         if np.any([x == 1 for x in self.DRM[i]['plan_detected']]):
                             self.starExtended = np.unique(np.append(self.starExtended,
@@ -314,7 +331,7 @@ class SurveySimulation(object):
                 # beginning of observation, start to populate DRM
                 DRM['star_ind'] = sInd
                 DRM['star_name'] = TL.Name[sInd]
-                DRM['arrival_time'] = TK.currentTimeNorm.to('day')
+                DRM['arrival_time'] = TK.tSinceMissionStart.to('day')
                 DRM['OB_nb'] = TK.OBnumber + 1
                 pInds = np.where(SU.plan2star == sInd)[0]
                 DRM['plan_inds'] = pInds.astype(int)
@@ -378,7 +395,7 @@ class SurveySimulation(object):
                 self.DRM.append(DRM)
                 
                 # calculate observation end time
-                TK.obsEnd = TK.currentTimeNorm.to('day')
+                TK.obsEnd = TK.tSinceMissionStart.to('day')
                 
                 # with prototype TimeKeeping, if no OB duration was specified, advance
                 # to the next OB with timestep equivalent to time spent on one target
@@ -457,7 +474,7 @@ class SurveySimulation(object):
                 
             # start times, including slew times
             startTimes = TK.currentTimeAbs + slewTimes
-            startTimesNorm = TK.currentTimeNorm + slewTimes
+            startTimesNorm = TK.tSinceMissionStart + slewTimes
             # indices of observable stars
             kogoodStart = Obs.keepout(TL, sInds, startTimes, mode)
             sInds = sInds[np.where(kogoodStart)[0]]
@@ -469,7 +486,7 @@ class SurveySimulation(object):
                         & (self.starVisits[sInds] < self.nVisitsMax))
                 if self.starRevisit.size != 0:
                     dt_max = 1.*u.week
-                    dt_rev = np.abs(self.starRevisit[:,1]*u.day - TK.currentTimeNorm)
+                    dt_rev = np.abs(self.starRevisit[:,1]*u.day - TK.tSinceMissionStart)
                     ind_rev = [int(x) for x in self.starRevisit[dt_rev < dt_max,0] 
                             if x in sInds]
                     tovisit[ind_rev] = (self.starVisits[ind_rev] < self.nVisitsMax)
@@ -595,7 +612,7 @@ class SurveySimulation(object):
         # cast sInds to array
         sInds = np.array(sInds, ndmin=1, copy=False)
         # calculate dt since previous observation
-        dt = TK.currentTimeNorm + slewTimes[sInds] - self.lastObsTimes[sInds]
+        dt = TK.tSinceMissionStart + slewTimes[sInds] - self.lastObsTimes[sInds]
         # get dynamic completeness values
         comps = Comp.completeness_update(TL, sInds, self.starVisits[sInds], dt)
         # choose target with maximum completeness
@@ -666,8 +683,8 @@ class SurveySimulation(object):
                 # calculate current zodiacal light brightness
                 fZs[i] = ZL.fZ(Obs, TL, sInd, TK.currentTimeAbs, mode)[0]
                 # propagate the system to match up with current time
-                SU.propag_system(sInd, TK.currentTimeNorm - self.propagTimes[sInd])
-                self.propagTimes[sInd] = TK.currentTimeNorm
+                SU.propag_system(sInd, TK.tSinceMissionStart - self.propagTimes[sInd])
+                self.propagTimes[sInd] = TK.tSinceMissionStart
                 # save planet parameters
                 systemParamss[i] = SU.dump_system_params(sInd)
                 # calculate signal and noise (electron count rates)
@@ -753,14 +770,14 @@ class SurveySimulation(object):
                 Mp = SU.Mp.mean()
             mu = const.G*(Mp + Ms)
             T = 2.*np.pi*np.sqrt(sp**3/mu)
-            t_rev = TK.currentTimeNorm + T/2.
+            t_rev = TK.tSinceMissionStart + T/2.
         # otherwise, revisit based on average of population semi-major axis and mass
         else:
             sp = SU.s.mean()
             Mp = SU.Mp.mean()
             mu = const.G*(Mp + Ms)
             T = 2.*np.pi*np.sqrt(sp**3/mu)
-            t_rev = TK.currentTimeNorm + 0.75*T
+            t_rev = TK.tSinceMissionStart + 0.75*T
         
         # finally, populate the revisit list (NOTE: sInd becomes a float)
         revisit = np.array([sInd, t_rev.to('day').value])
@@ -841,7 +858,7 @@ class SurveySimulation(object):
         if np.any(tochar):
             # start times
             startTime = TK.currentTimeAbs + mode['syst']['ohTime']
-            startTimeNorm = TK.currentTimeNorm + mode['syst']['ohTime']
+            startTimeNorm = TK.tSinceMissionStart + mode['syst']['ohTime']
             # planets to characterize
             tochar[tochar] = Obs.keepout(TL, sInd, startTime, mode)
         
@@ -898,8 +915,8 @@ class SurveySimulation(object):
                     # calculate current zodiacal light brightness
                     fZs[i] = ZL.fZ(Obs, TL, sInd, TK.currentTimeAbs, mode)[0]
                     # propagate the system to match up with current time
-                    SU.propag_system(sInd, TK.currentTimeNorm - self.propagTimes[sInd])
-                    self.propagTimes[sInd] = TK.currentTimeNorm
+                    SU.propag_system(sInd, TK.tSinceMissionStart - self.propagTimes[sInd])
+                    self.propagTimes[sInd] = TK.tSinceMissionStart
                     # save planet parameters
                     systemParamss[i] = SU.dump_system_params(sInd)
                     # calculate signal and noise (electron count rates)
