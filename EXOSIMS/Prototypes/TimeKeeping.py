@@ -185,8 +185,8 @@ class TimeKeeping(object):
         """Creates a new event in the event stack
         Args:
             inst - instrument the event is being scheduled for
-            tEstart - starting time of the event in mjd
-            tEend - end time of the event in mjd
+            tEstartn - starting time of the event in mjd
+            tEendn - end time of the event in mjd
             opType - spacecraft state during event i.e. 'detecting' 'characterizing' 'other'
         """
         #Check validity of proposed event
@@ -266,6 +266,13 @@ class TimeKeeping(object):
         is_over = (self.tSinceMissionStart >= self.missionLife)
         
         return is_over
+
+    def advancetEventEnd(self,tEend):
+        """Advances mission time to end of mission
+        Args:
+            tEend - time the event ends
+        """
+        self.TimeKeeping.tSinceMissionStart = tEend*u.d
 
     # def wait(self):
     #     """Waits a certain time in case no target can be observed at current time.

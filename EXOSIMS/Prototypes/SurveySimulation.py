@@ -287,12 +287,6 @@ class SurveySimulation(object):
             char_mode = allModes[0]
         
         # begin Survey, and loop until mission is finished
-        log_begin = 'OB%s: survey beginning.'%(TK.OBnumber + 1)
-        self.logger.info(log_begin)
-        self.vprint(log_begin)
-        t0 = time.time()
-        sInd = None
-        cnt = 0
         while not TK.mission_is_over():
             
             #Get Mission Time
@@ -301,17 +295,21 @@ class SurveySimulation(object):
 
             #Find Next Event In Stack
             nextEvent = TK.GetNextEvent()
-            if(nextEvent['opType'] == 'start'):
-                #do start thing
-            elif(nextEvent['opType'] == 'end'):
-                #do end thing
-            elif(nextEvent['opType'] == 'telescopeInUse'):
-                #telescopeInUse so do nothing
-            elif(nextEvent['opType'] == 'characterization'):
-                #do characterization thing
-            elif(nextEvent['opType'] == 'detection'):
+            if(not (nextEvent['tStart'] == TK.tSinceMissionStart.to('day'))):#if the next event does not occur right now
+                #run observation detection
+                self.detectionEvent()
             else:
-                #default is detection
+                if(nextEvent['opType'] == 'start'):
+                    log_begin, t0, sInd, cnt =self.startEvent()
+                elif(nextEvent['opType'] == 'end'):
+                    self.endEvent(t0)
+                elif(nextEvent['opType'] == 'telescopeInUse'):
+                    self.telescopeInUse()
+                elif(nextEvent['opType'] == 'characterization'):
+                    self.characterizationEvent()
+                elif(nextEvent['opType'] == 'detection'):
+                    self.detectionEvent()
+            
 
             #Advance time to end of event
             
@@ -407,14 +405,57 @@ class SurveySimulation(object):
                 if OS.haveOcculter and Obs.scMass < Obs.dryMass:
                     self.vprint('Total fuel mass exceeded at %s'%TK.obsEnd.round(2))
                     break
-        
-        else:
-            dtsim = (time.time() - t0)*u.s
-            log_end = "Mission complete: no more time available.\n" \
-                    + "Simulation duration: %s.\n"%dtsim.astype('int') \
-                    + "Results stored in SurveySimulation.DRM (Design Reference Mission)."
-            self.logger.info(log_end)
-            print(log_end)
+
+        #This is now Ending Event
+        # else:
+        #     dtsim = (time.time() - t0)*u.s
+        #     log_end = "Mission complete: no more time available.\n" \
+        #             + "Simulation duration: %s.\n"%dtsim.astype('int') \
+        #             + "Results stored in SurveySimulation.DRM (Design Reference Mission)."
+        #     self.logger.info(log_end)
+        #     print(log_end)
+
+    def startEvent(self):
+        """Starting Event of Simulation
+        Returns:
+            log_begin - 
+            t0 - 
+            sInd - 
+            cnt - 
+        """
+        TK = self.TimeKeeping
+        log_begin = 'OB%s: survey beginning.'%(TK.OBnumber + 1)
+        self.logger.info(log_begin)
+        self.vprint(log_begin)
+        t0 = time.time()
+        sInd = None
+        cnt = 0
+        return log_begin, t0, sInd, cnt
+
+    def endEvent(self,t0):
+        """Ending event of simulation
+        Args:
+            t0 - time at startEvent of simulation
+        """
+        dtsim = (time.time() - t0)*u.s
+        log_end = "Mission complete: no more time available.\n" \
+                + "Simulation duration: %s.\n"%dtsim.astype('int') \
+                + "Results stored in SurveySimulation.DRM (Design Reference Mission)."
+        self.logger.info(log_end)
+        self.vprint(log_end)
+
+    def telescopeInUse(self):
+        self.TimeKeeping.advancetEventEnd(self.TimeKeeping.get_nextEvent()['tEend'])
+
+    def detectionEvent(self):
+        print('detectionEvent')
+        #does nothing
+        #code needs to be moved here from runsim
+
+    def characterizationEvent(self):
+        print('Characterization Event')
+        #does nothing
+        #code needs to be moved here from runsim
 
     def next_target(self, old_sInd, mode):
         """Finds index of next target star and calculates its integration time.
