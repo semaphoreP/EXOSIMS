@@ -452,6 +452,8 @@ class SurveySimulation(object):
         """
         OS = self.OpticalSystem
         TK = self.TimeKeeping
+        TL = self.TargetList
+        SU = self.SimulatedUniverse
         # choose observing modes selected for detection (default marked with a flag)
         det_mode = filter(lambda mode: mode['detectionMode'] == True, OS.observingModes)[0]
         try:#Find last star observation
@@ -681,12 +683,11 @@ class SurveySimulation(object):
                 # store selected star integration time
                 intTime = intTimes[sInd]
                 break
-            
             # if no observable target, call the TimeKeeping.wait() method
             else:
-                #CALCULATE WHEN NEXT OBJECT COMES OUT OF KEEPOUT AND CREATE EVENT
+                #CALCULATE WHEN NEXT OBSERVABLE OBJECT COMES OUT OF KEEPOUT AND CREATE EVENT
                 #IF NO OBJECTS OBSERVABLE UNTIL MISSION END EVENT, THEN DO NOTHING
-                
+                TK.advanceToTimet(TK.currentTimeAbs + 1)
                 #TK.allocate_time(TK.waitTime*TK.waitMultiple**cnt)#TO DELETE
                 #cnt += 1#TO DELETE
             
