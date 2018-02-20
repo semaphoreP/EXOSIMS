@@ -275,136 +275,136 @@ class SurveySimulation(object):
         if OS.haveOcculter == True:
             self.currentSep = Obs.occulterSep
         
-        # choose observing modes selected for detection (default marked with a flag)
-        allModes = OS.observingModes
-        det_mode = filter(lambda mode: mode['detectionMode'] == True, allModes)[0]
+        # # choose observing modes selected for detection (default marked with a flag)
+        # det_mode = filter(lambda mode: mode['detectionMode'] == True, OS.observingModes)[0]
         # and for characterization (default is first spectro/IFS mode)
-        spectroModes = filter(lambda mode: 'spec' in mode['inst']['name'], allModes)
-        if np.any(spectroModes):
-            char_mode = spectroModes[0]
-        # if no spectro mode, default char mode is first observing mode
-        else:
-            char_mode = allModes[0]
+        # spectroModes = filter(lambda mode: 'spec' in mode['inst']['name'], OS.observingModes)
+        # if np.any(spectroModes):
+        #     char_mode = spectroModes[0]
+        # # if no spectro mode, default char mode is first observing mode
+        # else:
+        #     char_mode = OS.observingModes[0]
         
         # begin Survey, and loop until mission is finished
         while not TK.mission_is_over():
             
             #Get Mission Time
             # save the start time of this observation (BEFORE any OH/settling/slew time)
-            TK.obsStart = TK.tSinceMissionStart.to('day')
+            TK.obsStart = TK.currentTimeNorm.to('day')
 
             #Find Next Event In Stack
-            nextEvent = TK.GetNextEvent()
-            if(not (nextEvent['tStart'] == TK.tSinceMissionStart.to('day'))):#if the next event does not occur right now
-                #run observation detection
-                self.detectionEvent()
-            else:
-                if(nextEvent['opType'] == 'start'):
-                    log_begin, t0, sInd, cnt =self.startEvent()
-                elif(nextEvent['opType'] == 'end'):
-                    self.endEvent(t0)
+            nextEvent = TK.get_nextEvent()
+            if(not (nextEvent['tEstart'] == TK.currentTimeNorm.to('day'))):#if the next event does not occur right now
+                self.detectionEvent()#run observation detection observation
+                #self.TK.advanceToTimet(#TIME TO ADVANCE BY)
+            else:#An event is scheduled right now
+                if(nextEvent['opType'] == 'start'):#Note: There must always be a start event
+                    log_begin, simt0, sInd =self.startEvent()
+                elif(nextEvent['opType'] == 'end'):#Note: There must always be an end event
+                    self.endEvent(simt0)
+                    break
                 elif(nextEvent['opType'] == 'telescopeInUse'):
                     self.telescopeInUse()
                 elif(nextEvent['opType'] == 'characterization'):
                     self.characterizationEvent()
                 elif(nextEvent['opType'] == 'detection'):
                     self.detectionEvent()
+                #Advance time to end of event
+                self.TK.advanceToTimet(nextEvent['tEend'])
             
+            # # acquire the NEXT TARGET star index and create DRM
+            # DRM, sInd, det_intTime = self.next_target(sInd, det_mode)
+            # assert det_intTime != 0, "Integration time can't be 0."
 
-            #Advance time to end of event
-            
-            # acquire the NEXT TARGET star index and create DRM
-            DRM, sInd, det_intTime = self.next_target(sInd, det_mode)
-            assert det_intTime != 0, "Integration time can't be 0."
+            # if sInd is not None:
+            #     cnt += 1
+            #     # get the index of the selected target for the extended list
+            #     if TK.currentTimeNorm > TK.missionLife and len(self.starExtended) == 0:
+            #         for i in range(len(self.DRM)):
+            #             if np.any([x == 1 for x in self.DRM[i]['plan_detected']]):
+            #                 self.starExtended = np.unique(np.append(self.starExtended,
+            #                         self.DRM[i]['star_ind']))
+                
+            #     # beginning of observation, start to populate DRM
+            #     DRM['star_ind'] = sInd
+            #     DRM['star_name'] = TL.Name[sInd]
+            #     DRM['arrival_time'] = TK.currentTimeNorm.to('day')
+            #     DRM['OB_nb'] = TK.OBnumber + 1
+            #     pInds = np.where(SU.plan2star == sInd)[0]
+            #     DRM['plan_inds'] = pInds.astype(int)
+            #     log_obs = ('  Observation #%s, star ind %s (of %s) with %s planet(s), ' \
+            #             + 'mission time: %s')%(cnt, sInd, TL.nStars, len(pInds), 
+            #             TK.obsStart.round(2))
+            #     self.logger.info(log_obs)
+            #     self.vprint(log_obs)
+                
+            #     # PERFORM DETECTION and populate revisit list attribute
+            #     detected, det_fZ, det_systemParams, det_SNR, FA = \
+            #             self.observation_detection(sInd, det_intTime, det_mode)
+            #     # update the occulter wet mass
+            #     if OS.haveOcculter == True:
+            #         DRM = self.update_occulter_mass(DRM, sInd, det_intTime, 'det')
+            #     # populate the DRM with detection results
+            #     DRM['det_time'] = det_intTime.to('day')
+            #     DRM['det_status'] = detected
+            #     DRM['det_SNR'] = det_SNR
+            #     DRM['det_fZ'] = det_fZ.to('1/arcsec2')
+            #     DRM['det_params'] = det_systemParams
+                
+                # # PERFORM CHARACTERIZATION and populate spectra list attribute
+                # if char_mode['SNR'] not in [0, np.inf]:
+                #     characterized, char_fZ, char_systemParams, char_SNR, char_intTime = \
+                #             self.observation_characterization(sInd, char_mode)
+                # else:
+                #     char_intTime = None
+                #     lenChar = len(pInds) + 1 if FA else len(pInds)
+                #     characterized = np.zeros(lenChar, dtype=float)
+                #     char_SNR = np.zeros(lenChar, dtype=float)
+                #     char_fZ = 0./u.arcsec**2
+                #     char_systemParams = SU.dump_system_params(sInd)
+                # assert char_intTime != 0, "Integration time can't be 0."
 
-            if sInd is not None:
-                cnt += 1
-                # get the index of the selected target for the extended list
-                if TK.tSinceMissionStart > TK.missionLife and len(self.starExtended) == 0:
-                    for i in range(len(self.DRM)):
-                        if np.any([x == 1 for x in self.DRM[i]['plan_detected']]):
-                            self.starExtended = np.unique(np.append(self.starExtended,
-                                    self.DRM[i]['star_ind']))
+                # # update the occulter wet mass
+                # if OS.haveOcculter == True and char_intTime is not None:
+                #     DRM = self.update_occulter_mass(DRM, sInd, char_intTime, 'char')
+                # # populate the DRM with characterization results
+                # DRM['char_time'] = char_intTime.to('day') if char_intTime else 0.*u.day
+                # DRM['char_status'] = characterized[:-1] if FA else characterized
+                # DRM['char_SNR'] = char_SNR[:-1] if FA else char_SNR
+                # DRM['char_fZ'] = char_fZ.to('1/arcsec2')
+                # DRM['char_params'] = char_systemParams
+                # # populate the DRM with FA results
+                # DRM['FA_det_status'] = int(FA)
+                # DRM['FA_char_status'] = characterized[-1] if FA else 0
+                # DRM['FA_char_SNR'] = char_SNR[-1] if FA else 0.
+                # DRM['FA_char_fEZ'] = self.lastDetected[sInd,1][-1]/u.arcsec**2 \
+                #         if FA else 0./u.arcsec**2
+                # DRM['FA_char_dMag'] = self.lastDetected[sInd,2][-1] if FA else 0.
+                # DRM['FA_char_WA'] = self.lastDetected[sInd,3][-1]*u.arcsec \
+                #         if FA else 0.*u.arcsec
                 
-                # beginning of observation, start to populate DRM
-                DRM['star_ind'] = sInd
-                DRM['star_name'] = TL.Name[sInd]
-                DRM['arrival_time'] = TK.tSinceMissionStart.to('day')
-                DRM['OB_nb'] = TK.OBnumber + 1
-                pInds = np.where(SU.plan2star == sInd)[0]
-                DRM['plan_inds'] = pInds.astype(int)
-                log_obs = ('  Observation #%s, star ind %s (of %s) with %s planet(s), ' \
-                        + 'mission time: %s')%(cnt, sInd, TL.nStars, len(pInds), 
-                        TK.obsStart.round(2))
-                self.logger.info(log_obs)
-                self.vprint(log_obs)
+                # # populate the DRM with observation modes
+                # DRM['det_mode'] = dict(det_mode)
+                # del DRM['det_mode']['inst'], DRM['det_mode']['syst']
+                # DRM['char_mode'] = dict(char_mode)
+                # del DRM['char_mode']['inst'], DRM['char_mode']['syst']
                 
-                # PERFORM DETECTION and populate revisit list attribute
-                detected, det_fZ, det_systemParams, det_SNR, FA = \
-                        self.observation_detection(sInd, det_intTime, det_mode)
-                # update the occulter wet mass
-                if OS.haveOcculter == True:
-                    DRM = self.update_occulter_mass(DRM, sInd, det_intTime, 'det')
-                # populate the DRM with detection results
-                DRM['det_time'] = det_intTime.to('day')
-                DRM['det_status'] = detected
-                DRM['det_SNR'] = det_SNR
-                DRM['det_fZ'] = det_fZ.to('1/arcsec2')
-                DRM['det_params'] = det_systemParams
+                # # append result values to self.DRM
+                # self.DRM.append(DRM)
                 
-                # PERFORM CHARACTERIZATION and populate spectra list attribute
-                if char_mode['SNR'] not in [0, np.inf]:
-                    characterized, char_fZ, char_systemParams, char_SNR, char_intTime = \
-                            self.observation_characterization(sInd, char_mode)
-                else:
-                    char_intTime = None
-                    lenChar = len(pInds) + 1 if FA else len(pInds)
-                    characterized = np.zeros(lenChar, dtype=float)
-                    char_SNR = np.zeros(lenChar, dtype=float)
-                    char_fZ = 0./u.arcsec**2
-                    char_systemParams = SU.dump_system_params(sInd)
-                assert char_intTime != 0, "Integration time can't be 0."
-                # update the occulter wet mass
-                if OS.haveOcculter == True and char_intTime is not None:
-                    DRM = self.update_occulter_mass(DRM, sInd, char_intTime, 'char')
-                # populate the DRM with characterization results
-                DRM['char_time'] = char_intTime.to('day') if char_intTime else 0.*u.day
-                DRM['char_status'] = characterized[:-1] if FA else characterized
-                DRM['char_SNR'] = char_SNR[:-1] if FA else char_SNR
-                DRM['char_fZ'] = char_fZ.to('1/arcsec2')
-                DRM['char_params'] = char_systemParams
-                # populate the DRM with FA results
-                DRM['FA_det_status'] = int(FA)
-                DRM['FA_char_status'] = characterized[-1] if FA else 0
-                DRM['FA_char_SNR'] = char_SNR[-1] if FA else 0.
-                DRM['FA_char_fEZ'] = self.lastDetected[sInd,1][-1]/u.arcsec**2 \
-                        if FA else 0./u.arcsec**2
-                DRM['FA_char_dMag'] = self.lastDetected[sInd,2][-1] if FA else 0.
-                DRM['FA_char_WA'] = self.lastDetected[sInd,3][-1]*u.arcsec \
-                        if FA else 0.*u.arcsec
+                # # calculate observation end time
+                # TK.obsEnd = TK.currentTimeNorm.to('day')
                 
-                # populate the DRM with observation modes
-                DRM['det_mode'] = dict(det_mode)
-                del DRM['det_mode']['inst'], DRM['det_mode']['syst']
-                DRM['char_mode'] = dict(char_mode)
-                del DRM['char_mode']['inst'], DRM['char_mode']['syst']
+                # # with prototype TimeKeeping, if no OB duration was specified, advance
+                # # to the next OB with timestep equivalent to time spent on one target
+                # if np.isinf(TK.OBduration):
+                #     obsLength = (TK.obsEnd - TK.obsStart).to('day')
+                #     TK.next_observing_block(dt=obsLength)
                 
-                # append result values to self.DRM
-                self.DRM.append(DRM)
-                
-                # calculate observation end time
-                TK.obsEnd = TK.tSinceMissionStart.to('day')
-                
-                # with prototype TimeKeeping, if no OB duration was specified, advance
-                # to the next OB with timestep equivalent to time spent on one target
-                if np.isinf(TK.OBduration):
-                    obsLength = (TK.obsEnd - TK.obsStart).to('day')
-                    TK.next_observing_block(dt=obsLength)
-                
-                # with occulter, if spacecraft fuel is depleted, exit loop
-                if OS.haveOcculter and Obs.scMass < Obs.dryMass:
-                    self.vprint('Total fuel mass exceeded at %s'%TK.obsEnd.round(2))
-                    break
+                # # with occulter, if spacecraft fuel is depleted, exit loop
+                # if OS.haveOcculter and Obs.scMass < Obs.dryMass:
+                #     self.vprint('Total fuel mass exceeded at %s'%TK.obsEnd.round(2))
+                #     break
 
         #This is now Ending Event
         # else:
@@ -419,25 +419,23 @@ class SurveySimulation(object):
         """Starting Event of Simulation
         Returns:
             log_begin - 
-            t0 - 
+            simt0 - 
             sInd - 
-            cnt - 
         """
         TK = self.TimeKeeping
         log_begin = 'OB%s: survey beginning.'%(TK.OBnumber + 1)
         self.logger.info(log_begin)
         self.vprint(log_begin)
-        t0 = time.time()
+        simt0 = time.time()
         sInd = None
-        cnt = 0
-        return log_begin, t0, sInd, cnt
+        return log_begin, simt0, sInd
 
-    def endEvent(self,t0):
+    def endEvent(self,simt0):
         """Ending event of simulation
         Args:
-            t0 - time at startEvent of simulation
+            simt0 - simulation time elapsed at endEvent of simulation
         """
-        dtsim = (time.time() - t0)*u.s
+        dtsim = (time.time() - simt0)*u.s
         log_end = "Mission complete: no more time available.\n" \
                 + "Simulation duration: %s.\n"%dtsim.astype('int') \
                 + "Results stored in SurveySimulation.DRM (Design Reference Mission)."
@@ -445,17 +443,136 @@ class SurveySimulation(object):
         self.vprint(log_end)
 
     def telescopeInUse(self):
-        self.TimeKeeping.advancetEventEnd(self.TimeKeeping.get_nextEvent()['tEend'])
+        """Advances time to end of current event
+        """
+        self.TimeKeeping.advanceToTimet(self.TimeKeeping.get_nextEvent()['tEend'])
 
     def detectionEvent(self):
+        """
+        """
+        OS = self.OpticalSystem
+        TK = self.TimeKeeping
+        # choose observing modes selected for detection (default marked with a flag)
+        det_mode = filter(lambda mode: mode['detectionMode'] == True, OS.observingModes)[0]
+        try:#Find last star observation
+            sInd = self.sInd_old()#there needs to be a mechanism for finding the sInd of the last observation with this instrument
+            print('sInd is not none')#DELETE ME
+        except:
+            sInd = None
+            print('sInd is None')#DELETE ME
+        # acquire the NEXT TARGET star index and create DRM
+        DRM, sInd, det_intTime = self.next_target(sInd, det_mode)
+        assert det_intTime != 0, "Integration time can't be 0."
+
+        if sInd is not None:
+            TK.detObsNum += 1
+            # get the index of the selected target for the extended list
+            if TK.currentTimeNorm > TK.missionLife and len(self.starExtended) == 0:
+                for i in range(len(self.DRM)):
+                    if np.any([x == 1 for x in self.DRM[i]['plan_detected']]):
+                        self.starExtended = np.unique(np.append(self.starExtended,
+                                self.DRM[i]['star_ind']))
+            
+            # beginning of detection observation, start to populate DRM
+            DRM['star_ind'] = sInd
+            DRM['star_name'] = TL.Name[sInd]
+            DRM['arrival_time'] = TK.currentTimeNorm.to('day')
+            DRM['OB_nb'] = TK.OBnumber + 1
+            pInds = np.where(SU.plan2star == sInd)[0]
+            DRM['plan_inds'] = pInds.astype(int)
+            log_obs = ('  Observation #%s, star ind %s (of %s) with %s planet(s), ' \
+                    + 'mission time: %s')%(TK.detObsNum, sInd, TL.nStars, len(pInds), 
+                    TK.obsStart.round(2))
+            self.logger.info(log_obs)
+            self.vprint(log_obs)
+            
+            # PERFORM DETECTION and populate revisit list attribute
+            detected, det_fZ, det_systemParams, det_SNR, FA = \
+                    self.observation_detection(sInd, det_intTime, det_mode)
+            # update the occulter wet mass
+            if OS.haveOcculter == True:
+                DRM = self.update_occulter_mass(DRM, sInd, det_intTime, 'det')
+            # populate the DRM with detection results
+            DRM['det_time'] = det_intTime.to('day')
+            DRM['det_status'] = detected
+            DRM['det_SNR'] = det_SNR
+            DRM['det_fZ'] = det_fZ.to('1/arcsec2')
+            DRM['det_params'] = det_systemParams
+
+            # populate the DRM with observation modes
+            DRM['det_mode'] = dict(det_mode)
+            del DRM['det_mode']['inst'], DRM['det_mode']['syst']
+
+            # with occulter, if spacecraft fuel is depleted, exit loop
+            if OS.haveOcculter and Obs.scMass < Obs.dryMass:
+                self.vprint('Total fuel mass exceeded at %s'%TK.obsEnd.round(2))
+                #terminate occulter
+                #while loop to delete all future occulter events
+                #occulter may not be only instrument so we cannot terminate the mission
+
         print('detectionEvent')
-        #does nothing
-        #code needs to be moved here from runsim
+        # append result values to self.DRM
+        self.DRM.append(DRM)
 
     def characterizationEvent(self):
+        """
+        """
+        # Choose observing mode for characterization (default is first spectro/IFS mode)
+        spectroModes = filter(lambda mode: 'spec' in mode['inst']['name'], OS.observingModes)
+        if np.any(spectroModes):
+            char_mode = spectroModes[0]
+        # if no spectro mode, default char mode is first observing mode
+        else:
+            char_mode = OS.observingModes[0]
+
+        # PERFORM CHARACTERIZATION and populate spectra list attribute
+        if char_mode['SNR'] not in [0, np.inf]:
+            characterized, char_fZ, char_systemParams, char_SNR, char_intTime = \
+                    self.observation_characterization(sInd, char_mode)
+        else:
+            char_intTime = None
+            lenChar = len(pInds) + 1 if FA else len(pInds)
+            characterized = np.zeros(lenChar, dtype=float)
+            char_SNR = np.zeros(lenChar, dtype=float)
+            char_fZ = 0./u.arcsec**2
+            char_systemParams = SU.dump_system_params(sInd)
+        assert char_intTime != 0, "Integration time can't be 0."
+
+        # update the occulter wet mass
+        if OS.haveOcculter == True and char_intTime is not None:
+            DRM = self.update_occulter_mass(DRM, sInd, char_intTime, 'char')
+
+        # beginning of characterization observation, start to populate DRM
+        DRM['star_ind'] = sInd
+        DRM['star_name'] = TL.Name[sInd]
+        DRM['arrival_time'] = TK.currentTimeNorm.to('day')
+        DRM['OB_nb'] = TK.OBnumber + 1
+        pInds = np.where(SU.plan2star == sInd)[0]
+        DRM['plan_inds'] = pInds.astype(int)
+
+        # populate the DRM with characterization results
+        DRM['char_time'] = char_intTime.to('day') if char_intTime else 0.*u.day
+        DRM['char_status'] = characterized[:-1] if FA else characterized
+        DRM['char_SNR'] = char_SNR[:-1] if FA else char_SNR
+        DRM['char_fZ'] = char_fZ.to('1/arcsec2')
+        DRM['char_params'] = char_systemParams
+        # populate the DRM with FA results
+        DRM['FA_det_status'] = int(FA)
+        DRM['FA_char_status'] = characterized[-1] if FA else 0
+        DRM['FA_char_SNR'] = char_SNR[-1] if FA else 0.
+        DRM['FA_char_fEZ'] = self.lastDetected[sInd,1][-1]/u.arcsec**2 \
+                if FA else 0./u.arcsec**2
+        DRM['FA_char_dMag'] = self.lastDetected[sInd,2][-1] if FA else 0.
+        DRM['FA_char_WA'] = self.lastDetected[sInd,3][-1]*u.arcsec \
+                if FA else 0.*u.arcsec
+
+        # populate the DRM with observation modes
+        DRM['char_mode'] = dict(char_mode)
+        del DRM['char_mode']['inst'], DRM['char_mode']['syst']
+
+        # append result values to self.DRM
+        self.DRM.append(DRM)
         print('Characterization Event')
-        #does nothing
-        #code needs to be moved here from runsim
 
     def next_target(self, old_sInd, mode):
         """Finds index of next target star and calculates its integration time.
@@ -481,7 +598,6 @@ class SurveySimulation(object):
                 Defaults to None.
         
         """
-        
         OS = self.OpticalSystem
         ZL = self.ZodiacalLight
         Comp = self.Completeness
@@ -493,10 +609,10 @@ class SurveySimulation(object):
         DRM = {}
         
         # allocate settling time + overhead time
-        TK.allocate_time(Obs.settlingTime + mode['syst']['ohTime'])
+        TK.advanceToTimet(TK.currentTimeAbs + TK.currentTimeNorm + Obs.settlingTime + mode['syst']['ohTime'])#TK.allocate_time(Obs.settlingTime + mode['syst']['ohTime'])
         
         # now, start to look for available targets
-        cnt = 0
+        #cnt = 0#TO DELETE
         while not TK.mission_is_over():
             # 1. initialize arrays
             slewTimes = np.zeros(TL.nStars)*u.d
@@ -515,7 +631,7 @@ class SurveySimulation(object):
                 
             # start times, including slew times
             startTimes = TK.currentTimeAbs + slewTimes
-            startTimesNorm = TK.tSinceMissionStart + slewTimes
+            startTimesNorm = TK.currentTimeNorm + slewTimes
             # indices of observable stars
             kogoodStart = Obs.keepout(TL, sInds, startTimes, mode)
             sInds = sInds[np.where(kogoodStart)[0]]
@@ -527,7 +643,7 @@ class SurveySimulation(object):
                         & (self.starVisits[sInds] < self.nVisitsMax))
                 if self.starRevisit.size != 0:
                     dt_max = 1.*u.week
-                    dt_rev = np.abs(self.starRevisit[:,1]*u.day - TK.tSinceMissionStart)
+                    dt_rev = np.abs(self.starRevisit[:,1]*u.day - TK.currentTimeNorm)
                     ind_rev = [int(x) for x in self.starRevisit[dt_rev < dt_max,0] 
                             if x in sInds]
                     tovisit[ind_rev] = (self.starVisits[ind_rev] < self.nVisitsMax)
@@ -568,8 +684,11 @@ class SurveySimulation(object):
             
             # if no observable target, call the TimeKeeping.wait() method
             else:
-                TK.allocate_time(TK.waitTime*TK.waitMultiple**cnt)
-                cnt += 1
+                #CALCULATE WHEN NEXT OBJECT COMES OUT OF KEEPOUT AND CREATE EVENT
+                #IF NO OBJECTS OBSERVABLE UNTIL MISSION END EVENT, THEN DO NOTHING
+                
+                #TK.allocate_time(TK.waitTime*TK.waitMultiple**cnt)#TO DELETE
+                #cnt += 1#TO DELETE
             
         else:
             return DRM, None, None
@@ -577,7 +696,7 @@ class SurveySimulation(object):
         # update visited list for selected star
         self.starVisits[sInd] += 1
         # store normalized start time for future completeness update
-        self.lastObsTimes[sInd] = startTimesNorm[sInd]
+        self.lastObsTimes[sInd] = startTimesNorm[sInd].to('day')
         
         # populate DRM with occulter related values
         if OS.haveOcculter == True:
@@ -653,7 +772,7 @@ class SurveySimulation(object):
         # cast sInds to array
         sInds = np.array(sInds, ndmin=1, copy=False)
         # calculate dt since previous observation
-        dt = TK.tSinceMissionStart + slewTimes[sInds] - self.lastObsTimes[sInds]
+        dt = TK.currentTimeNorm + slewTimes[sInds] - self.lastObsTimes[sInds]
         # get dynamic completeness values
         comps = Comp.completeness_update(TL, sInds, self.starVisits[sInds], dt)
         # choose target with maximum completeness
@@ -724,8 +843,8 @@ class SurveySimulation(object):
                 # calculate current zodiacal light brightness
                 fZs[i] = ZL.fZ(Obs, TL, sInd, TK.currentTimeAbs, mode)[0]
                 # propagate the system to match up with current time
-                SU.propag_system(sInd, TK.tSinceMissionStart - self.propagTimes[sInd])
-                self.propagTimes[sInd] = TK.tSinceMissionStart
+                SU.propag_system(sInd, TK.currentTimeNorm - self.propagTimes[sInd])
+                self.propagTimes[sInd] = TK.currentTimeNorm
                 # save planet parameters
                 systemParamss[i] = SU.dump_system_params(sInd)
                 # calculate signal and noise (electron count rates)
@@ -811,14 +930,14 @@ class SurveySimulation(object):
                 Mp = SU.Mp.mean()
             mu = const.G*(Mp + Ms)
             T = 2.*np.pi*np.sqrt(sp**3/mu)
-            t_rev = TK.tSinceMissionStart + T/2.
+            t_rev = TK.currentTimeNorm + T/2.
         # otherwise, revisit based on average of population semi-major axis and mass
         else:
             sp = SU.s.mean()
             Mp = SU.Mp.mean()
             mu = const.G*(Mp + Ms)
             T = 2.*np.pi*np.sqrt(sp**3/mu)
-            t_rev = TK.tSinceMissionStart + 0.75*T
+            t_rev = TK.currentTimeNorm + 0.75*T
         
         # finally, populate the revisit list (NOTE: sInd becomes a float)
         revisit = np.array([sInd, t_rev.to('day').value])
@@ -899,7 +1018,7 @@ class SurveySimulation(object):
         if np.any(tochar):
             # start times
             startTime = TK.currentTimeAbs + mode['syst']['ohTime']
-            startTimeNorm = TK.tSinceMissionStart + mode['syst']['ohTime']
+            startTimeNorm = TK.currentTimeNorm + mode['syst']['ohTime']
             # planets to characterize
             tochar[tochar] = Obs.keepout(TL, sInd, startTime, mode)
         
@@ -956,8 +1075,8 @@ class SurveySimulation(object):
                     # calculate current zodiacal light brightness
                     fZs[i] = ZL.fZ(Obs, TL, sInd, TK.currentTimeAbs, mode)[0]
                     # propagate the system to match up with current time
-                    SU.propag_system(sInd, TK.tSinceMissionStart - self.propagTimes[sInd])
-                    self.propagTimes[sInd] = TK.tSinceMissionStart
+                    SU.propag_system(sInd, TK.currentTimeNorm - self.propagTimes[sInd])
+                    self.propagTimes[sInd] = TK.currentTimeNorm
                     # save planet parameters
                     systemParamss[i] = SU.dump_system_params(sInd)
                     # calculate signal and noise (electron count rates)

@@ -89,31 +89,33 @@ class TimeKeeping(object):
         # seconds, causing warnings from astropy.time when time-deltas are added
         self.missionStart = Time(float(missionStart), format='mjd', scale='tai')#The mission start in MJD
         self.missionLife = float(missionLife)*u.year#length of the mission from start to finish in years
-        #self.extendedLife = float(extendedLife)*u.year#additional mission time beyond missionLife in years
-        #self.missionPortion = float(missionPortion)
+        self.extendedLife = float(extendedLife)*u.year#additional mission time beyond missionLife in years
+        self.missionPortion = float(missionPortion)
         
         # set values derived from quantities above
-        #self.missionFinishNorm = self.missionLife.to('day') + self.extendedLife.to('day')
+        self.missionFinishNorm = self.missionLife.to('day') + self.extendedLife.to('day')
         self.missionEnd = self.missionStart + self.missionLife#The end time of the mission in MJD #self.missionFinishAbs = self.missionStart + self.missionLife + self.extendedLife
         
         # initialize values updated by functions
-        self.tSinceMissionStart = 0.*u.day#the time elapsed since mission start #self.currentTimeNorm = 0.*u.day#the current time
+        #self.currentTimeNorm = 0.*u.day#the time elapsed since mission start #
+        self.currentTimeNorm = 0.*u.day#the current time elapsed since mission start
         self.currentTimeAbs = self.missionStart#the current time in mjd
         
         # initialize observing block times arrays
-        self.OBnumber = 0 #number of detection observations made
-        #self.OBduration = float(OBduration)*u.day
-        #self.OBstartTimes = [0.]*u.day
-        #maxOBduration = self.missionFinishNorm*self.missionPortion
-        #self.OBendTimes = [min(self.OBduration, maxOBduration).to('day').value]*u.day
+        self.OBnumber = 0 #number of detection observations made#TO DELETE
+        self.detObsNum = 0 #number of detection observations made
+        self.OBduration = float(OBduration)*u.day
+        self.OBstartTimes = [0.]*u.day
+        maxOBduration = self.missionFinishNorm*self.missionPortion
+        self.OBendTimes = [min(self.OBduration, maxOBduration).to('day').value]*u.day
         
         # initialize single observation START and END times
-        #self.obsStart = 0.*u.day
-        #self.obsEnd = 0.*u.day
+        self.obsStart = 0.*u.day
+        self.obsEnd = 0.*u.day
         
         # initialize wait parameters
-        #self.waitTime = float(waitTime)*u.day
-        #self.waitMultiple = float(waitMultiple)
+        self.waitTime = float(waitTime)*u.day
+        self.waitMultiple = float(waitMultiple)
         
         # populate outspec
         for att in self.__dict__.keys():
@@ -177,6 +179,7 @@ class TimeKeeping(object):
             tEstarts[#events] - all Event Start Times
             tEends[#events] - all Event End Times
         """
+        EventStack = self.get_EventStack()
         tEstarts = [EventStack[i]['tEstart'] for i in np.arange(0,len(EventStack))]
         tEends = [EventStack[i]['tEend'] for i in np.arange(0,len(EventStack))]
         return tEstarts, tEends
@@ -204,10 +207,10 @@ class TimeKeeping(object):
         
         #Append the Event to the EventStack
         try:    
-            self.EventStack.append({'inst':inst,'tStart':tEstartn,'tEnd':tEendn,'state':opType})#appends event to the event stack
+            self.EventStack.append({'inst':inst,'tEstart':tEstartn,'tEend':tEendn,'state':opType})#appends event to the event stack
         except:
             self.EventStack = list()#create EventStack and append the event to it
-            self.EventStack.append({'inst':inst,'tStart':tEstartn,'tEnd':tEendn,'state':opType})#appends event to the event stack
+            self.EventStack.append({'inst':inst,'tEstart':tEstartn,'tEend':tEendn,'state':opType})#appends event to the event stack
 
     def deleteEvent(self,inst,tEstart,tEend,opType):
         """Deletes event with specified tEstart and tEend
@@ -236,7 +239,7 @@ class TimeKeeping(object):
     def get_nextEvent(self):
         """Finds the next Event in the stack and returns all details
         Returns:
-            {}
+            EventStack - dictionary containing parameters of the nextEvent
         """
         def findEventIndex(EventStack, key, value):
             for i, dic in enumerate(EventStack):
@@ -246,7 +249,7 @@ class TimeKeeping(object):
 
         #[tEstarts, tEends] = self.get_tEstarts_tEends()#retrieve list of event start and end times
         #technically min(tEstarts) should get the correct time
-        eventIndex = findEventIndex(self.EventStack,'tEstart',self.tSinceMissionStart.to('day').value)
+        eventIndex = findEventIndex(self.EventStack,'tEstart',self.currentTimeNorm.to('day').value)
 
         return self.EventStack[eventIndex]
 
@@ -263,16 +266,25 @@ class TimeKeeping(object):
                 True if the mission time is used up, else False.
         """
         
-        is_over = (self.tSinceMissionStart >= self.missionLife)
+        is_over = (self.currentTimeNorm >= self.missionLife)
         
         return is_over
 
-    def advancetEventEnd(self,tEend):
-        """Advances mission time to end of mission
+    def advanceToTimet(self,t):
+        """Advances mission time to time t
         Args:
-            tEend - time the event ends
+            t(value in days) - time since mission start to advance current time to
         """
-        self.TimeKeeping.tSinceMissionStart = tEend*u.d
+        assert t >= self.currentTimeAbs, "Need t >= %f, got %f"%(self.currentTimeAbs.value, t.value)#new event must occur after current time
+        [tEstarts, tEends] = self.get_tEstarts_tEends()
+        for i in np.arange(0,len(tEends)):
+            assert(not (tEstarts[i] <= t <= tEends[i]),"Need NOT(%f < tEendn < %f) where i=%f, got %f" % (tEstarts[i].value, i, tEends[i].value, t.value))#end of new event must occur outside bounds of existing events
+            assert(not ((self.currentTimeAbs < tEstarts[i]) and (tEends[i] < t)), "Need NOT((currentTimeAbs < %f) && (%f < t)) where i=%f, got tEstartn=%f and tEendn=%f" % (tEstarts[i].value, tEends[i].value, i, self.currentTimeAbs.value, t.value)) #new event cannot span an existing event
+
+        self.currentTimeNorm = t - self.missionStart
+        self.currentTimeAbs = t#self.missionStart + self.currentTimeNorm
+        
+
 
     # def wait(self):
     #     """Waits a certain time in case no target can be observed at current time.
@@ -284,27 +296,26 @@ class TimeKeeping(object):
     #     """
     #     self.allocate_time(self.waitTime)
 
-    # def allocate_time(self, dt):
-    #     r"""Allocate a temporal block of width dt, advancing to the next OB if needed.
+    def allocate_time(self, dt):
+        r"""THIS FUNCTION SHOULD BE DEPRICATED Allocate a temporal block of width dt, advancing to the next OB if needed.
         
-    #     Advance the mission time by dt units. If this requires moving into the next OB,
-    #     call the next_observing_block() method of the TimeKeeping class object.
+        Advance the mission time by dt units. If this requires moving into the next OB,
+        call the next_observing_block() method of the TimeKeeping class object.
         
-    #     Args:
-    #         dt (astropy Quantity):
-    #             Temporal block allocated in units of day
+        Args:
+            dt (astropy Quantity):
+                Temporal block allocated in units of day  
+        """
         
-    #     """
-        
-    #     if dt == 0:
-    #         return
+        if dt == 0:
+            return
             
-    #     self.currentTimeNorm += dt
-    #     self.currentTimeAbs += dt
+        self.currentTimeNorm += dt
+        self.currentTimeAbs += dt
         
-    #     if not self.mission_is_over() and (self.currentTimeNorm 
-    #             >= self.OBendTimes[self.OBnumber]):
-    #         self.next_observing_block()
+        if not self.mission_is_over() and (self.currentTimeNorm 
+                >= self.OBendTimes[self.OBnumber]):
+            self.next_observing_block()
 
     # def next_observing_block(self, dt=None):
     #     """Defines the next observing block, start and end times.
