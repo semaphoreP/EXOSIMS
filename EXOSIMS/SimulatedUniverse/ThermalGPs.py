@@ -47,7 +47,10 @@ class ThermalGPs(SimulatedUniverse):
         self.gen_M0()                           # initial mean anomaly
         self.Mp = PPop.gen_mass(self.nPlans)    # mass
         self.dists = TL.dist[self.plan2star] # pc
-        self.delta_mags = TL.Hmag[self.plan2star] # magnitudes!
+        self.delta_mags = TL.Kmag[self.plan2star] # magnitudes!
+
+        # simulate ages
+        self.ages = np.random.uniform(0, 1e9, self.nPlans)
         
         # The prototype StarCatalog module is made of one single G star at 1pc. 
         # In that case, the SimulatedUniverse prototype generates one Jupiter 
@@ -67,70 +70,70 @@ class ThermalGPs(SimulatedUniverse):
             self.Mp = np.array([300.])*u.earthMass
             self.p = np.array([0.6])
 
-        def set_planet_phase(self, beta = np.pi/2):
-            """Positions all planets at input star-planet-observer phase angle
-            where possible. For systems where the input phase angle is not achieved,
-            planets are positioned at quadrature (phase angle of 90 deg).
-            
-            The position found here is not unique. The desired phase angle will be
-            achieved at two points on the planet's orbit (for non-face on orbits).
-            
-            Args:
-                beta (float):
-                    star-planet-observer phase angle in radians.
-            
-            """
-            
-            PPMod = self.PlanetPhysicalModel
-            ZL = self.ZodiacalLight
-            TL = self.TargetList
-            
-            a = self.a.to('AU').value               # semi-major axis
-            e = self.e                              # eccentricity
-            I = self.I.to('rad').value              # inclinations
-            O = self.O.to('rad').value              # right ascension of the ascending node
-            w = self.w.to('rad').value              # argument of perigee
-            Mp = self.Mp                            # planet masses
-            
-            # make list of betas
-            betas = beta*np.ones(w.shape)
-            mask = np.cos(betas)/np.sin(I) > 1.
-            num = len(np.where(mask == True)[0])
-            betas[mask] = np.pi/2.
-            mask = np.cos(betas)/np.sin(I) < -1.
-            num += len(np.where(mask == True)[0])
-            betas[mask] = np.pi/2.
-            if num > 0:
-                print('***Warning***')
-                print('{} planets out of {} could not be set to phase angle {} radians.'.format(num,self.nPlans,beta))
-                print('These planets are set to quadrature (phase angle pi/2)')
-            
-            # solve for true anomaly
-            nu = np.arcsin(np.cos(betas)/np.sin(I)) - w
-            
-            # setup for position and velocity
-            a1 = np.cos(O)*np.cos(w) - np.sin(O)*np.cos(I)*np.sin(w)
-            a2 = np.sin(O)*np.cos(w) + np.cos(O)*np.cos(I)*np.sin(w)
-            a3 = np.sin(I)*np.sin(w)
-            A = np.vstack((a1, a2, a3))
-            
-            b1 = -(np.cos(O)*np.sin(w) + np.sin(O)*np.cos(I)*np.cos(w))
-            b2 = (-np.sin(O)*np.sin(w) + np.cos(O)*np.cos(I)*np.cos(w))
-            b3 = np.sin(I)*np.cos(w)
-            B = np.vstack((b1, b2, b3))
-            
-            r = a*(1.-e**2)/(1.-e*np.cos(nu))
-            mu = const.G*(Mp + TL.MsTrue[self.plan2star])
-            v1 = -np.sqrt(mu/(self.a*(1.-self.e**2)))*np.sin(nu)
-            v2 = np.sqrt(mu/(self.a*(1.-self.e**2)))*(self.e + np.cos(nu))
-            
-            self.r = (A*r*np.cos(nu) + B*r*np.sin(nu)).T*u.AU           # position
-            self.v = (A*v1 + B*v2).T.to('AU/day')                       # velocity
-            self.d = np.linalg.norm(self.r, axis=1)*self.r.unit         # planet-star distance
-            self.s = np.linalg.norm(self.r[:,0:2], axis=1)*self.r.unit  # apparent separation
-            self.phi = PPMod.calc_Phi(np.arccos(self.r[:,2]/self.d))    # planet phase
-            self.fEZ = ZL.fEZ(TL.MV[self.plan2star], self.I, self.d)    # exozodi brightness
-            
-            self.dMag = deltaMagThermal(self.delta_mags, self.Mp, self.dists, 20*np.ones(self.dists.shape))     # delta magnitude
+    def set_planet_phase(self, beta = np.pi/2):
+        """Positions all planets at input star-planet-observer phase angle
+        where possible. For systems where the input phase angle is not achieved,
+        planets are positioned at quadrature (phase angle of 90 deg).
+        
+        The position found here is not unique. The desired phase angle will be
+        achieved at two points on the planet's orbit (for non-face on orbits).
+        
+        Args:
+            beta (float):
+                star-planet-observer phase angle in radians.
+        
+        """
+        
+        PPMod = self.PlanetPhysicalModel
+        ZL = self.ZodiacalLight
+        TL = self.TargetList
+        
+        a = self.a.to('AU').value               # semi-major axis
+        e = self.e                              # eccentricity
+        I = self.I.to('rad').value              # inclinations
+        O = self.O.to('rad').value              # right ascension of the ascending node
+        w = self.w.to('rad').value              # argument of perigee
+        Mp = self.Mp                            # planet masses
+        
+        # make list of betas
+        betas = beta*np.ones(w.shape)
+        mask = np.cos(betas)/np.sin(I) > 1.
+        num = len(np.where(mask == True)[0])
+        betas[mask] = np.pi/2.
+        mask = np.cos(betas)/np.sin(I) < -1.
+        num += len(np.where(mask == True)[0])
+        betas[mask] = np.pi/2.
+        if num > 0:
+            print('***Warning***')
+            print('{} planets out of {} could not be set to phase angle {} radians.'.format(num,self.nPlans,beta))
+            print('These planets are set to quadrature (phase angle pi/2)')
+        
+        # solve for true anomaly
+        nu = np.arcsin(np.cos(betas)/np.sin(I)) - w
+        
+        # setup for position and velocity
+        a1 = np.cos(O)*np.cos(w) - np.sin(O)*np.cos(I)*np.sin(w)
+        a2 = np.sin(O)*np.cos(w) + np.cos(O)*np.cos(I)*np.sin(w)
+        a3 = np.sin(I)*np.sin(w)
+        A = np.vstack((a1, a2, a3))
+        
+        b1 = -(np.cos(O)*np.sin(w) + np.sin(O)*np.cos(I)*np.cos(w))
+        b2 = (-np.sin(O)*np.sin(w) + np.cos(O)*np.cos(I)*np.cos(w))
+        b3 = np.sin(I)*np.cos(w)
+        B = np.vstack((b1, b2, b3))
+        
+        r = a*(1.-e**2)/(1.-e*np.cos(nu))
+        mu = const.G*(Mp + TL.MsTrue[self.plan2star])
+        v1 = -np.sqrt(mu/(self.a*(1.-self.e**2)))*np.sin(nu)
+        v2 = np.sqrt(mu/(self.a*(1.-self.e**2)))*(self.e + np.cos(nu))
+        
+        self.r = (A*r*np.cos(nu) + B*r*np.sin(nu)).T*u.AU           # position
+        self.v = (A*v1 + B*v2).T.to('AU/day')                       # velocity
+        self.d = np.linalg.norm(self.r, axis=1)*self.r.unit         # planet-star distance
+        self.s = np.linalg.norm(self.r[:,0:2], axis=1)*self.r.unit  # apparent separation
+        self.phi = PPMod.calc_Phi(np.arccos(self.r[:,2]/self.d))    # planet phase
+        self.fEZ = ZL.fEZ(TL.MV[self.plan2star], self.I, self.d)    # exozodi brightness
+        
+        self.dMag = deltaMagThermal(self.delta_mags, self.Mp, self.dists, self.ages, band='K')     # delta magnitude
 
-            self.WA = np.arctan(self.s/TL.dist[self.plan2star]).to('arcsec')# working angle
+        self.WA = np.arctan(self.s/TL.dist[self.plan2star]).to('arcsec')# working angle
