@@ -37,7 +37,7 @@ class Completeness(object):
        
         #if specs contains a completeness_spec then we are going to generate separate instances
         #of planet population and planet physical model for completeness and for the rest of the sim
-        if specs.has_key('completeness_specs'):
+        if 'completeness_specs' in specs:
             if not specs['completeness_specs'].has_key('modules'):
                 specs['completeness_specs']['modules'] = {}
             if not specs['completeness_specs']['modules'].has_key('PlanetPhysicalModel'):

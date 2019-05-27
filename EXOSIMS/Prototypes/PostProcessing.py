@@ -58,7 +58,7 @@ class PostProcessing(object):
         self.MDP = float(MDP)       # missed detection probability
         
         # check for post-processing factor, function of the working angle
-        if isinstance(ppFact, basestring):
+        if isinstance(ppFact, str):
             pth = os.path.normpath(os.path.expandvars(ppFact))
             assert os.path.isfile(pth), "%s is not a valid file."%pth
             dat = fits.open(pth)[0].data
@@ -77,7 +77,7 @@ class PostProcessing(object):
             self.ppFact = lambda s, G=float(ppFact): G
             
         # check for minimum FA delta magnitude, function of the working angle
-        if isinstance(FAdMag0, basestring):
+        if isinstance(FAdMag0, str):
             pth = os.path.normpath(os.path.expandvars(FAdMag0))
             assert os.path.isfile(pth), "%s is not a valid file."%pth
             dat = fits.open(pth)[0].data

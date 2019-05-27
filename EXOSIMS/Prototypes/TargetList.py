@@ -142,7 +142,7 @@ class TargetList(object):
 
         #if specs contains a completeness_spec then we are going to generate separate instances
         #of planet population and planet physical model for completeness and for the rest of the sim
-        if specs.has_key('completeness_specs'):
+        if 'completeness_specs' in specs:
             self.PlanetPopulation = get_module(specs['modules']['PlanetPopulation'],'PlanetPopulation')(**specs)
             self.PlanetPhysicalModel = self.PlanetPopulation.PlanetPhysicalModel
         else:
@@ -270,7 +270,10 @@ class TargetList(object):
         MK = []
         MKn = []
         for s in data['SpT'].data:
+            if 'T' in s or 'L' in s or 'Y' in s:
+                s = 'M9V'
             m = specregex.match(s)
+
             MK.append(m.groups()[0])
             MKn.append(m.groups()[1])
         MK = np.array(MK)
@@ -306,9 +309,15 @@ class TargetList(object):
         if np.any(np.isnan(self.Vmag)):
             inds = np.where(np.isnan(self.Vmag))[0]
             for i in inds:
-                m = specregex2.match(self.Spec[i])
+                s = str(self.Spec[i])
+                if 'T' in s or 'L' in s or 'Y' in s:
+                    s = 'M9V'
+                m = specregex2.match(s)
                 if m:
-                    self.Vmag[i] = Mvi[m.groups()[0]](m.groups()[1])
+                    spt = str(m.groups()[0])
+                    if spt == 'T' or spt == 'L':
+                        spt = 'M'
+                    self.Vmag[i] = Mvi[spt](m.groups()[1])
                     self.MV[i] = self.Vmag[i] - 5*(np.log10(self.dist[i].to('pc').value) - 1)
 
         #next, try to fill in any missing B mags
@@ -316,9 +325,12 @@ class TargetList(object):
         if np.any(np.isnan(self.Bmag)):
             inds = np.where(np.isnan(self.Bmag))[0]
             for i in inds:
-                m = specregex2.match(self.Spec[i])
-                if m:
-                    self.BV[i] = BmVi[m.groups()[0]](m.groups()[1])
+                m = specregex2.match(str(self.Spec[i]))
+                if m:                   
+                    spt = m.groups()[0]
+                    if spt == 'T' or spt == 'L':
+                        spt = 'M'
+                    self.BV[i] = BmVi[spt](m.groups()[1])
                     self.Bmag[i] = self.BV[i] + self.Vmag[i]
 
         #next fix any missing luminosities
@@ -326,17 +338,26 @@ class TargetList(object):
         if np.any(np.isnan(self.L)):
             inds = np.where(np.isnan(self.L))[0]
             for i in inds:
-                m = specregex2.match(self.Spec[i])
+                m = specregex2.match(str(self.Spec[i]))
                 if m:
-                    self.L[i] = 10.0**logLi[m.groups()[0]](m.groups()[1])
+                    spt = m.groups()[0]
+                    if spt == 'T' or spt == 'L':
+                        spt = 'M'
+                    self.L[i] = 10.0**logLi[spt](m.groups()[1])
 
         #and bolometric corrections
         if np.all(self.BC == 0): self.BC *= np.nan
         if np.any(np.isnan(self.BC)):
             inds = np.where(np.isnan(self.BC))[0]
             for i in inds:
-                m = specregex2.match(self.Spec[i])
+                s = str(self.Spec[i])
+                if 'T' in s or 'L' in s or 'Y' in s:
+                    s = 'M9V'
+                m = specregex2.match(s)
                 if m:
+                    spt = m.groups()[0]
+                    if spt == 'T' or spt == 'L':
+                        spt = 'M'
                     self.BC[i] = BCi[m.groups()[0]](m.groups()[1])
 
 
@@ -345,7 +366,10 @@ class TargetList(object):
         if np.any(np.isnan(self.Kmag)):
             inds = np.where(np.isnan(self.Kmag))[0]
             for i in inds:
-                m = specregex2.match(self.Spec[i])
+                s = str(self.Spec[i])
+                if 'T' in s or 'L' in s or 'Y' in s:
+                    s = 'M9V'
+                m = specregex2.match(s)
                 if m:
                     VmK = VmKi[m.groups()[0]](m.groups()[1])
                     self.Kmag[i] = self.Vmag[i] - VmK
@@ -355,7 +379,10 @@ class TargetList(object):
         if np.any(np.isnan(self.Hmag)):
             inds = np.where(np.isnan(self.Hmag))[0]
             for i in inds:
-                m = specregex2.match(self.Spec[i])
+                s = str(self.Spec[i])
+                if 'T' in s or 'L' in s or 'Y' in s:
+                    s = 'M9V'
+                m = specregex2.match(s)
                 if m:
                     HmK = HmKi[m.groups()[0]](m.groups()[1])
                     self.Hmag[i] = self.Kmag[i] + HmK
@@ -365,7 +392,10 @@ class TargetList(object):
         if np.any(np.isnan(self.Jmag)):
             inds = np.where(np.isnan(self.Jmag))[0]
             for i in inds:
-                m = specregex2.match(self.Spec[i])
+                s = str(self.Spec[i])
+                if 'T' in s or 'L' in s or 'Y' in s:
+                    s = 'M9V'
+                m = specregex2.match(s)
                 if m:
                     JmH = JmHi[m.groups()[0]](m.groups()[1])
                     self.Jmag[i] = self.Hmag[i] + JmH
@@ -375,7 +405,10 @@ class TargetList(object):
         if np.any(np.isnan(self.Imag)):
             inds = np.where(np.isnan(self.Imag))[0]
             for i in inds:
-                m = specregex2.match(self.Spec[i])
+                s = str(self.Spec[i])
+                if 'T' in s or 'L' in s or 'Y' in s:
+                    s = 'M9V'
+                m = specregex2.match(s)
                 if m:
                     VmI = VmIi[m.groups()[0]](m.groups()[1])
                     self.Imag[i] = self.Vmag[i] - VmI
@@ -385,7 +418,7 @@ class TargetList(object):
         if np.any(np.isnan(self.Umag)):
             inds = np.where(np.isnan(self.Umag))[0]
             for i in inds:
-                m = specregex2.match(self.Spec[i])
+                m = specregex2.match(str(self.Spec[i]))
                 if m:
                     UmB = UmBi[m.groups()[0]](m.groups()[1])
                     self.Umag[i] = self.Bmag[i] + UmB
@@ -395,7 +428,7 @@ class TargetList(object):
         if np.any(np.isnan(self.Rmag)):
             inds = np.where(np.isnan(self.Rmag))[0]
             for i in inds:
-                m = specregex2.match(self.Spec[i])
+                m = specregex2.match(str(self.Spec[i]))
                 if m:
                     VmR = VmRi[m.groups()[0]](m.groups()[1])
                     self.Rmag[i] = self.Vmag[i] - VmR
@@ -457,7 +490,9 @@ class TargetList(object):
                     i2 = np.where(~np.isnan(self.coords.dec.to('deg').value))[0]
                     i = np.intersect1d(i1,i2)
                 else:
-                    i = np.where(~np.isnan(getattr(self, att)))[0]
+                    star_names = getattr(self, att)
+                    star_names_valid = np.array([name == np.isnan for name in star_names])
+                    i = np.where(~star_names_valid)[0]
                 self.revise_lists(i)
 
     def binary_filter(self):

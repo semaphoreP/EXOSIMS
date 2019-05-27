@@ -141,7 +141,8 @@ class SurveySimulation(object):
 
         # if any of the modules is a string, assume that they are all strings 
         # and we need to initalize
-        if isinstance(specs['modules'].itervalues().next(), basestring):
+        #if isinstance(specs['modules'].itervalues().next(), basestring):
+        if isinstance(next(iter(specs['modules'])), str):
             
             # import desired module names (prototype or specific)
             self.SimulatedUniverse = get_module(specs['modules']['SimulatedUniverse'],
@@ -231,7 +232,7 @@ class SurveySimulation(object):
         OS = self.OpticalSystem
         TL = self.TargetList
         SU = self.SimulatedUniverse
-        mode = filter(lambda mode: mode['detectionMode'] == True, OS.observingModes)[0]
+        mode = list(filter(lambda mode: mode['detectionMode'] == True, OS.observingModes))[0]
 
         if dMagint is None:
             dMagint = Comp.dMagLim 
@@ -289,7 +290,7 @@ class SurveySimulation(object):
 
         # choose observing modes selected for detection (default marked with a flag)
         allModes = OS.observingModes
-        det_mode = filter(lambda mode: mode['detectionMode'] == True, allModes)[0]
+        det_mode = list(filter(lambda mode: mode['detectionMode'] == True, allModes))[0]
         self.mode = det_mode
 
         # Precalculating intTimeFilter
@@ -348,9 +349,9 @@ class SurveySimulation(object):
         
         # choose observing modes selected for detection (default marked with a flag)
         allModes = OS.observingModes
-        det_mode = filter(lambda mode: mode['detectionMode'] == True, allModes)[0]
+        det_mode = list(filter(lambda mode: mode['detectionMode'] == True, allModes))[0]
         # and for characterization (default is first spectro/IFS mode)
-        spectroModes = filter(lambda mode: 'spec' in mode['inst']['name'], allModes)
+        spectroModes = list(filter(lambda mode: 'spec' in mode['inst']['name'], allModes))
         if np.any(spectroModes):
             char_mode = spectroModes[0]
         # if no spectro mode, default char mode is first observing mode
@@ -762,7 +763,7 @@ class SurveySimulation(object):
         intTimeArray = np.zeros([TL.nStars,2])*u.d
         
         allModes = OS.observingModes
-        mode = filter(lambda mode: mode['detectionMode'] == True, allModes)[0]
+        mode = list(filter(lambda mode: mode['detectionMode'] == True, allModes))[0]
         
         for n in sInds:
                 obsTimeArray[n,:] = np.linspace(obsTimes[0,n].value,obsTimes[1,n].value,50)*u.d          
@@ -1751,7 +1752,7 @@ class SurveySimulation(object):
         cachefname += str(tmp2)#Planet Pop
         cachefname += str(tmp1)#Planet Physical Model
         for mod in mods: cachefname += self.modules[mod].__module__.split(".")[-1]#add module name to end of cachefname?
-        cachefname += hashlib.md5(str(self.TargetList.Name)+str(self.TargetList.tint0.to(u.d).value)).hexdigest()#turn cachefname into hashlib
+        cachefname += hashlib.md5((str(self.TargetList.Name)+str(self.TargetList.tint0.to(u.d).value)).encode("utf-8")).hexdigest()#turn cachefname into hashlib
         # fileloc = os.path.split(inspect.getfile(self.__class__))[0]
         cachefname = os.path.join(self.cachedir,cachefname+os.extsep)#join into filepath and fname
         #Needs file terminator (.starkt0, .t0, etc) appended done by each individual use case.

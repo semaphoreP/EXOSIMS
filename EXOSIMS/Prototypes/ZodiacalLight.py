@@ -188,7 +188,7 @@ class ZodiacalLight(object):
             resolution = [j for j in range(1000)]
             fZ = np.zeros([sInds.shape[0], len(resolution)])
             dt = 365.25/len(resolution)*u.d
-            for i in xrange(len(resolution)):#iterate through all times of year
+            for i in range(len(resolution)):#iterate through all times of year
                 time = startTime + dt*resolution[i]
                 fZ[:,i] = self.fZ(Obs, TL, sInds, time, mode)
             

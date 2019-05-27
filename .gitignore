@@ -93,7 +93,7 @@ statsFun_C
 *.starkcache
 *.maxCbyTt0
 *.fits
-*.csv
+!EXOSIMS\util\coldstart.csv
 *.fZmax
 *.starkfZ
 */queue.json

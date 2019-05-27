@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from EXOSIMS.Prototypes.StarCatalog import StarCatalog
 import os
-import cPickle as pickle
+import _pickle as pickle
 from scipy.io import loadmat
 from astropy.coordinates import SkyCoord
 import numpy as np
@@ -51,10 +51,10 @@ class SIMBADCatalog(StarCatalog):
                 
                 success = True
             else:
-                print "pickled dictionary file %s must contain key 'Name'"%pklpath
+                print("pickled dictionary file %s must contain key 'Name'"%pklpath)
                 success = False
         else:
-            print 'Star catalog pickled dictionary file %s not in StarCatalog directory'%pklpath
+            print('Star catalog pickled dictionary file %s not in StarCatalog directory'%pklpath)
             success = False
         
         return success
@@ -98,7 +98,7 @@ class SIMBADCatalog(StarCatalog):
                 if field == 'BINARY_CUT':
                     bc = x.BINARY_CUT.tolist()
                     y['Binary_Cut'] = [False]*len(bc)
-                    for i in xrange(len(bc)):
+                    for i in range(len(bc)):
                         if bc[i] == 'cut':
                             y['Binary_Cut'][i] = True
                 else:
@@ -107,7 +107,7 @@ class SIMBADCatalog(StarCatalog):
             pickle.dump(y, open(pklpath, 'wb'))
             success = True
         else:
-            print '%s does not exist in StarCatalog directory'%matpath
+            print('%s does not exist in StarCatalog directory'%matpath)
             success = False
         
         return success

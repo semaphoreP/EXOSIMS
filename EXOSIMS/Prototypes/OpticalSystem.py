@@ -224,14 +224,14 @@ class OpticalSystem(object):
         self._outspec['scienceInstruments'] = []
         for ninst, inst in enumerate(self.scienceInstruments):
             assert isinstance(inst, dict), "Science instruments must be defined as dicts."
-            assert inst.has_key('name') and isinstance(inst['name'], basestring), \
+            assert "name" in inst and isinstance(inst['name'], str), \
                     "All science instruments must have key name."
             # populate with values that may be filenames (interpolants)
             inst['QE'] = inst.get('QE', QE)
             self._outspec['scienceInstruments'].append(inst.copy())
             
             # quantum efficiency
-            if isinstance(inst['QE'], basestring):
+            if isinstance(inst['QE'], str):
                 pth = os.path.normpath(os.path.expandvars(inst['QE']))
                 assert os.path.isfile(pth), "%s is not a valid file."%pth
                 dat = fits.open(pth)[0].data
@@ -293,7 +293,7 @@ class OpticalSystem(object):
         for nsyst,syst in enumerate(self.starlightSuppressionSystems):
             assert isinstance(syst,dict),\
                     "Starlight suppression systems must be defined as dicts."
-            assert syst.has_key('name') and isinstance(syst['name'],basestring),\
+            assert "name" in syst and isinstance(syst['name'],str),\
                     "All starlight suppression systems must have key name."
             # populate with values that may be filenames (interpolants)
             syst['occ_trans'] = syst.get('occ_trans', occ_trans)
@@ -335,7 +335,7 @@ class OpticalSystem(object):
             syst['core_platescale'] = syst.get('core_platescale', core_platescale)
             
             # get PSF
-            if isinstance(syst['PSF'], basestring):
+            if isinstance(syst['PSF'], str):
                 pth = os.path.normpath(os.path.expandvars(syst['PSF']))
                 assert os.path.isfile(pth), "%s is not a valid file."%pth
                 hdr = fits.open(pth)[0].header
@@ -372,7 +372,7 @@ class OpticalSystem(object):
         self._outspec['observingModes'] = []
         for nmode, mode in enumerate(self.observingModes):
             assert isinstance(mode, dict), "Observing modes must be defined as dicts."
-            assert mode.has_key('instName') and mode.has_key('systName'), \
+            assert 'instName' in mode and 'systName' in mode, \
                     "All observing modes must have key instName and systName."
             assert np.any([mode['instName'] == inst['name'] for inst in \
                     self.scienceInstruments]), "The mode's instrument name " \
@@ -410,7 +410,7 @@ class OpticalSystem(object):
         
         # check for only one detection mode
         allModes = self.observingModes
-        detModes = filter(lambda mode: mode['detectionMode'] == True, allModes)
+        detModes = list(filter(lambda mode: mode['detectionMode'] == True, allModes))
         assert len(detModes) <= 1, "More than one detection mode specified."
         # if not specified, default detection mode is first imager mode
         if len(detModes) == 0:
@@ -426,7 +426,7 @@ class OpticalSystem(object):
         try:
             self.WA0 = float(WA0)*u.arcsec
         except TypeError:
-            mode = filter(lambda mode: mode['detectionMode'] == True, self.observingModes)[0]
+            mode = list(filter(lambda mode: mode['detectionMode'] == True, self.observingModes))[0]
             self.WA0 = 2.*mode['IWA'] if np.isinf(mode['OWA']) else (mode['IWA'] + mode['OWA'])/2.
         
         # populate fundamental IWA and OWA as required
@@ -493,8 +493,8 @@ class OpticalSystem(object):
         
         """
         
-        assert isinstance(param_name, basestring), "param_name must be a string."
-        if isinstance(syst[param_name], basestring):
+        assert isinstance(param_name, str), "param_name must be a string."
+        if isinstance(syst[param_name], str):
             pth = os.path.normpath(os.path.expandvars(syst[param_name]))
             assert os.path.isfile(pth), "%s is not a valid file."%pth
             dat = fits.open(pth)[0].data
@@ -716,7 +716,7 @@ class OpticalSystem(object):
         """
         
         # select detection mode
-        mode = filter(lambda mode: mode['detectionMode'] == True, self.observingModes)[0]
+        mode = list(filter(lambda mode: mode['detectionMode'] == True, self.observingModes))[0]
         
         # define attributes for integration time calculation
         sInds = np.arange(TL.nStars)

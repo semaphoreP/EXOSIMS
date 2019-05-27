@@ -461,7 +461,7 @@ class Observatory(object):
         nkogood = np.maximum(nStars, nTimes)
         kogood = np.array([True]*nkogood)
         culprit = np.zeros([nkogood, nBodies])
-        for i in xrange(nkogood):
+        for i in range(nkogood):
             u_b = u_body[:,0,:] if nTimes == 1 else u_body[:,i,:]
             u_t = u_targ[0,:] if nStars == 1 else u_targ[i,:]
             angles = np.arccos(np.clip(np.dot(u_b, u_t), -1, 1))*u.rad
@@ -516,7 +516,7 @@ class Observatory(object):
         extstr += '%s: ' % 'missionStart'     + str(missionStart)     + ' '
         extstr += '%s: ' % 'missionFinishAbs' + str(missionFinishAbs) + ' '
         extstr += '%s: ' % 'Name' + str(getattr(TL, 'Name')) + ' '
-        ext = hashlib.md5(extstr).hexdigest()
+        ext = hashlib.md5(extstr.encode("utf-8")).hexdigest()
         filename += ext
         koPath = os.path.join(self.cachedir, filename+'.komap')
         
@@ -526,23 +526,23 @@ class Observatory(object):
 
         if os.path.exists(koPath):
             # keepout map already exists for parameters
-            print 'Loading cached keepout map file from %s' % koPath
+            print('Loading cached keepout map file from %s' % koPath)
             A = pickle.load(open(koPath, 'rb'))
-            print 'Keepout Map loaded from cache.'
+            print('Keepout Map loaded from cache.')
             koMap = A['koMap']
         else:
-            print 'Cached keepout map file not found at "%s".' % koPath
+            print('Cached keepout map file not found at "%s".' % koPath)
             # looping over all stars to generate map of when all stars are observable
-            print 'Starting keepout calculations for %s stars.' % TL.nStars
+            print('Starting keepout calculations for %s stars.' % TL.nStars)
             koMap = np.zeros([TL.nStars,len(koTimes)])
             for n in range(TL.nStars):
                 koMap[n,:] = self.keepout(TL,n,koTimes,False)
-                if not n % 50: print '   [%s / %s] completed.' % (n,TL.nStars)
+                if not n % 50: print('   [%s / %s] completed.' % (n,TL.nStars))
             A = {'koMap':koMap}
             with open(koPath, 'wb') as f:
                 pickle.dump(A, f)
-            print 'Keepout Map calculations finished'
-            print 'Keepout Map array stored in %r' % koPath
+            print('Keepout Map calculations finished')
+            print('Keepout Map array stored in %r' % koPath)
             
         return koMap,koTimes
     
@@ -878,7 +878,7 @@ class Observatory(object):
             r_Earth = self.keplerplanet(currentTime, 'Earth')
             return r_Earth + self.moon_earth(currentTime)
         
-        assert self.planets.has_key(bodyname),\
+        assert bodyname in self.planets,\
                 "%s is not a recognized body name."%(bodyname)
         
         # find Julian centuries from J2000
